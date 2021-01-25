@@ -52,7 +52,7 @@ def main():
     args = parse_args()
 
     ###### for saving results ######
-    save_path = os.path.join('checkpoint', args.comment)
+    save_path = os.path.join('../checkpoint', args.comment)
     # prepare logger
     logger = Logger(save_path)
     # save the settings

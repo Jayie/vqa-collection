@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.nn.utils.weight_norm import weight_norm
 
 from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding
-from util.attention import ConcatAttention, DotAttention
+from util.attention import ConcatAttention, MultiplyAttention
 
 def set_model(model_type: str):
     """
@@ -169,7 +169,7 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
             dropout: dropout (default=0.5)
         """
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, ans_dim, dropout)
-        self.attention = DotAttention(v_dim, hidden_dim, att_fc_dim) # replace the attention
+        self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim) # replace the attention
         # the forward process is the same
 
 

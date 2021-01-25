@@ -30,7 +30,7 @@ def compute_score(predict, target, device):
 
 def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment='', start_epoch=0):
     optimizer = torch.optim.Adamax(model.parameters())
-    writer = SummaryWriter(comment=comment)
+    writer = SummaryWriter(log_dir='../tensorboard', comment=comment)
     best_score = 0
     best_epoch = 0
     
@@ -38,6 +38,7 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0
+        prev_loss = 0
         
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             v = batch['img']
@@ -62,6 +63,9 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
             if i % checkpoint == 0 and i != 0:
                 # save checkpoint
                 torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
+                t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
+                logger.write(f'[Batch {i}] ({t}) | loss: {(avg_loss-prev_loss)/checkpoint:.4f}')
+                prev_loss = avg_loss
 
         # when an epoch is completed
         # save checkpoint
@@ -73,7 +77,7 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
         # save log
         avg_loss /= len(train_loader.dataset)
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
-        logger.write(f'[{t}] Epoch {epoch} | avg_loss: {avg_loss:.4f} | score: {eval_score} / {bound}')
+        logger.write(f'[Epoch {epoch}] ({t}) | avg_loss: {avg_loss:.4f} | score: {eval_score} / {bound}')
 
         # reset average loss
         avg_loss = 0
