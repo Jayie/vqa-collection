@@ -1,13 +1,15 @@
 import os
 import argparse
 import json
+import time
+import traceback
 
 import torch
 from torch.utils.data import DataLoader
 
 from dataset import set_dataset
 from util.model import set_model
-from train import train
+from train import train, evaluate
 from util.utils import *
 
 def parse_args():
@@ -19,13 +21,11 @@ def parse_args():
     parser.add_argument('--ans_path',type=str, default='../data/answer_candidate.txt', help='path for answer candidate list')
     parser.add_argument('--load_path', type=str, default='../annot', help='path for loading dataset')
     parser.add_argument('--feature_path', type=str, default='../../COCO_feature_36', help='path for COCO image features')
-    # parser.add_argument('--dataset', type=str, default='train2014', help='dataset name')
-    # parser.add_argument('--save_path', type=str, default='checkpoint/test', help='path for saving outputs')
-    parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
     parser.add_argument('--seed', type=int, default=10, help='random seed')
+    parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
+    parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
 
     # dataset and dataloader settings
-    parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--shuffle', type=bool, default=False, help='shuffle dataloader or not')
 
@@ -38,6 +38,11 @@ def parse_args():
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
+
+    parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
+    parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
+    parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
+    parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
 
     args = parser.parse_args()
     return args
@@ -59,20 +64,11 @@ def main():
     # set random seed
     random_seed(args.seed)
     # set device
-    device = set_device()
+    device = args.device if args.device != '' else set_device()
     # prepare vocabulary list
     vocab_list = get_vocab_list(args.vocab_path)
     # answer candidate list
     ans_list = get_vocab_list(args.ans_path)
-
-    # setup dataset and dataloader
-    print('loading train dataset', end='... ')
-    train_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_train=True)
-    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
-    print('loading valid dataset', end='... ')
-    val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True)
-    val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
-
 
     # setup model
     model = set_model(args.model)(
@@ -88,21 +84,61 @@ def main():
     )
     print('model ready.')
 
-    print('start training.')
-    train(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        num_epoches=args.epoches,
-        save_path=save_path,
-        device=device,
-        logger=logger,
-        checkpoint=10000,
-        max_norm=0.25,
-        comment=args.comment,
-    )
+    if args.mode == 'train':
+        # setup training and validation datasets
+        print('loading train dataset', end='... ')
+        train_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_train=True)
+        train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
+        print('loading valid dataset', end='... ')
+        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True)
+        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
+
+        # if need to train continously, load the previous status of model
+        if args.start_epoch != 0:
+            model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}_final.pt'))
+            print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}_final.pt')
+
+        print('start training.')
+        train(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_epoches=args.epoches,
+            save_path=save_path,
+            device=device,
+            logger=logger,
+            checkpoint=10000,
+            max_norm=0.25,
+            comment=args.comment,
+            start_epoch=args.start_epoch
+        )
+
+    elif args.mode == 'val':
+        # load model
+        model.load_state_dict(torch.load(args.load_model))
+        print('load parameters:', args.load_model)
+
+        # setup validation dataset
+        print('loading valid dataset', end='... ')
+        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True)
+        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
+
+        # evaluate
+        evaluate(
+            model=model,
+            dataloader=val_loader,
+            device=device,
+            logger=logger
+        )
 
 
 if __name__ == '__main__':
-    main()
-
+    try:
+        main()
+    except Exception as e:
+        error = traceback.format_exc()
+        print(error)
+        with open('checkpoint/error.txt', 'w') as f:
+            f.write(time.ctime())
+            f.write('\n')
+            f.write(error)

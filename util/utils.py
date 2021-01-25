@@ -1,4 +1,5 @@
 import os
+import time
 import random
 
 import numpy as np
@@ -41,7 +42,7 @@ class Logger():
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        self.log_file = open(os.path.join(save_path, log_name), 'w')
+        self.log_file = open(os.path.join(save_path, log_name), 'w+')
     #     self.infos = {}
 
     # def append(self, key, value):
@@ -58,5 +59,6 @@ class Logger():
     #     return msg
 
     def write(self, msg):
+        self.log_file.write(time.strftime("%y%m%d %H:%M:%S ", time.localtime())) # time
         self.log_file.write(msg+'\n')
         self.log_file.flush()

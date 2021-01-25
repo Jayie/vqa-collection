@@ -28,18 +28,18 @@ def compute_score(predict, target, device):
     return scores
 
 
-def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment=''):
+def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment='', start_epoch=0):
     optimizer = torch.optim.Adamax(model.parameters())
     writer = SummaryWriter(comment=comment)
     best_score = 0
     best_epoch = 0
     
     model.train()
-    for epoch in range(num_epoches):
+    for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0
         
-        for i, batch in enumerate(tqdm(train_loader, desc='train')):
+        for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             v = batch['img']
             q = batch['q']
             target = batch['a'].float()
@@ -86,12 +86,13 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
 
         logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score}')
 
-def evaluate(model, dataloader, device):
+def evaluate(model, dataloader, device, logger=None):
     score = 0
-    target_score = 0 # the upper bound of score (the score of prediction wouldn't be greater than this)
+    target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     
     model = model.to(device)
     model.eval()
+    start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='eval')):
             v = batch['img'].to(device)
@@ -105,4 +106,11 @@ def evaluate(model, dataloader, device):
             
             target_score += target.max(1)[0].sum().item()
     
+    l = len(dataloader.dataset)
+    score = score / l
+    target_score = target_score / l
+
+    if logger != None:
+        t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
+        logger.write(f'[{t}] evaluate score: {score} / bound: {target_score}')
     return score, target_score

@@ -15,10 +15,8 @@ def set_model(model_type: str):
     models = {
         # bottom-up VQA
         'base': BottomUpVQAModel,
-
         # bottom-up VQA with dot attention
         'new': NewBottomUpVQAModel,
-
         # VQA with Generating Question Relevant Captions
         'q-caption': QuestionRelevantCaptionsVQAModel,
     }
@@ -26,6 +24,7 @@ def set_model(model_type: str):
     msg = f'model_type can only be \"{keys}\", but get \"{model_type}\".'
     assert model_type in models.keys(), msg
     return models[model_type]
+
 
 def use_pretrained_embedding(model, vocab_path: str, device: str):
     """
@@ -37,6 +36,7 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     """
     model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model
+
 
 class BottomUpVQAModel(nn.Module):
     """
