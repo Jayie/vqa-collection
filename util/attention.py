@@ -50,7 +50,7 @@ class MultiplyAttention(nn.Module):
     Given v = visual features, q = query embedding,
     output = Softmax(W(Wv(v) * Wq(q)))
     """
-    def __init__(self, v_dim, q_dim, hidden_dim, dropout=0.2):
+    def __init__(self, v_dim, q_dim, hidden_dim, activate_type='relu', dropout=0.2):
         super().__init__()
         self.W_v = FCNet(v_dim, hidden_dim)
         self.W_q = FCNet(q_dim, hidden_dim)

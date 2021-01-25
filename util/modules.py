@@ -18,14 +18,14 @@ class FCNet(nn.Module):
                  out_dim: int,
                  mid_dim: int = 0,
                  layer: int = 1,
-                 dropout: float = 0
+                 dropout: float = 0,
         ):
         """Input:
             in_dim: input dimension
             out_dim: output dimension
-            mid_dim: dimension of the layers in the middle of the network (default=0)
-            layer: number of layers (default=1)
-            dropout: dropout
+            mid_dim: dimension of the layers in the middle of the network (default = 0)
+            layer: number of layers (default = 1)
+            dropout: dropout (default = 0, i.e. no use of dropout)
         """
 
         super().__init__()
@@ -41,7 +41,6 @@ class FCNet(nn.Module):
             # Layer 1: in_dim -> mid_dim
             layers.append(weight_norm(nn.Linear(in_dim, mid_dim), dim=None))
             layers.append(nn.ReLU())
-            
             if dropout != 0:
                     layers.append(nn.Dropout(dropout, inplace=True))
             
@@ -60,6 +59,20 @@ class FCNet(nn.Module):
     def forward(self, x):
         return self.main(x)
 
+class LReLUNet(nn.Module):
+    """
+    Fully-connected layer with Leaky ReLU used in 'Generating Question Relevant Captions to Aid Visual Question Answering',
+    which is f(x) = LReLU(Wx + b) with input features x and ignore the notation of weights and biases for simplicity.
+    """
+    def __init__(self, in_dim: int, out_dim: int, neg_slope: float = 0.01):
+        super().__init__()
+        self.main = nn.Sequential([
+            nn.Linear(in_dim, out_dim, bias=False),
+            nn.LeakyReLU(neg_slope)
+        ])
+
+    def forward(self, x):
+        return self.main(x)
 
 class SentenceEmbedding(nn.Module):
     """
@@ -176,6 +189,7 @@ class CaptionEmbedding(nn.Module):
                     max_len: int,
                     device: str,
                     dropout: float = 0.2,
+                    neg_slope: float = 0.2,
                     rnn_type: str='GRU',
 
     ):
@@ -184,8 +198,9 @@ class CaptionEmbedding(nn.Module):
             q_dim: dimension of the question feature
             hidden_dim: dimension of the hidden states
             max_len: the maximal length of input captions
-            dropout: dropout (default=0.5)
-            rnn_type: choose the type of RNN (default=GRU)
+            dropout: dropout (default = 0.5)
+            neg_slope: negative slope for 
+            rnn_type: choose the type of RNN (default = GRU)
         """
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -202,9 +217,10 @@ class CaptionEmbedding(nn.Module):
         
         # prepare caption attention module
         self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=hidden_dim, dropout=dropout)
-
         # fully-connected layer
-        self.fcnet = FCNet(hidden_dim, hidden_dim)
+        self.fcnet = LReLUNet(hidden_dim, hidden_dim)
+        # max-pooling layer
+        self.maxpool = nn.MaxPool1d(hidden_dim)
 
     def init_hidden(self, batch):
         weight = next(self.parameters()).data
@@ -238,7 +254,7 @@ class CaptionEmbedding(nn.Module):
         h2 = self.init_hidden(batch) # [batch, hidden_dim]
 
         # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.max_len, self.hidden_dim).to(self.device)
+        output = torch.zeros(batch, self.hidden_dim, self.max_len).to(self.device)
         alphas = torch.zeros(batch, self.max_len, self.hidden_dim).to(self.device)
 
         # This list is for saving the batch size for each time step
@@ -269,9 +285,10 @@ class CaptionEmbedding(nn.Module):
             h2 = self.fcnet(h2)
 
             # Save the results
-            output[:batch_t, t, :] = h2
+            output[:batch_t, :, t] = h2
             alphas[:batch_t, t, :] = att
 
         # Element-wise max pooling
+        output = self.maxpool(output).squeeze() # [batch, hidden_dim]
 
         return output, alphas

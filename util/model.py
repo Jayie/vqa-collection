@@ -5,7 +5,7 @@ import torch.optim
 import torch.nn as nn
 from torch.nn.utils.weight_norm import weight_norm
 
-from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding
+from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from util.attention import ConcatAttention, MultiplyAttention
 
 def set_model(model_type: str):
@@ -76,7 +76,7 @@ class BottomUpVQAModel(nn.Module):
         """
 
         super().__init__()
-        # word embedding for question
+        # Word embedding for question
         self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
         
         # RNN for question
@@ -87,25 +87,36 @@ class BottomUpVQAModel(nn.Module):
             dropout=dropout
         )
         
-        # dropout
+        # Dropout
         self.dropout = nn.Dropout(dropout)
 
-        # attention layer for image features based on questions
+        # Attention layer for image features based on questions
         self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
 
-        # non-linar layers for image features
+        # Non-linar layers for image features
         self.q_net = FCNet(hidden_dim, hidden_dim)
 
-        # non-linear layers for question
+        # Non-linear layers for question
         self.v_net = FCNet(v_dim, hidden_dim)
 
-        # classifier
+        # Classifier
         self.classifier = FCNet(
             in_dim=hidden_dim,
             mid_dim=2*hidden_dim,
             out_dim=ans_dim,
             layer=cls_layer, dropout=dropout
         )
+
+    def input_embedding(self, v, q):
+        # Embed words and take the last output of RNN layer as the question embedding
+        q = self.embedding(q) # [batch, q_len, q_embed_dim]
+        q = self.q_rnn(q) # [batch, hidden_dim]
+        
+        # Get the attention of visual features based on question embedding
+        v_att = self.attention(v, q) # [batch, num_objs, 1]
+        # Get question-attended visual feature vq
+        v = (v_att * v).sum(1) # [batch, v_dim]
+        return v, q
 
     def forward(self, v, q):
         """
@@ -115,23 +126,26 @@ class BottomUpVQAModel(nn.Module):
         Output:[batch, num_answer_candidate]
         """
         
-        # embed words and take the last output of RNN layer as the question embedding
-        q = self.embedding(q) # [batch, q_len, q_embed_dim]
-        q = self.q_rnn(q) # [batch, hidden_dim]
+        ##########################################################################################
+        # # Embed words and take the last output of RNN layer as the question embedding
+        # q = self.embedding(q) # [batch, q_len, q_embed_dim]
+        # q = self.q_rnn(q) # [batch, hidden_dim]
         
-        # get the attention of visual features based on question embedding
-        v_att = self.attention(v, q) # [batch, num_objs, 1]
-        # sum-up visual features
-        v = (v_att * v).sum(1) # [batch, v_dim]
+        # # Get the attention of visual features based on question embedding
+        # v_att = self.attention(v, q) # [batch, num_objs, 1]
+        # # Get question-attended visual feature vq
+        # v = (v_att * v).sum(1) # [batch, v_dim]
+        ##########################################################################################
+        v, q = self.input_embedding(v, q)
         
         # FC layers
         q = self.q_net(q) # [batch, hidden_dim]
         v = self.v_net(v) # [batch, hidden_dim]
         
-        # fuse visual and question features (multiplication here)
+        # Fuse visual and question features (multiplication here)
         joint = q * v # [batch, hidden_dim]
         
-        # predict answer
+        # Predict answer
         joint = self.classifier(joint) # [batch, num_answer_candidate]
         return joint
 
@@ -153,24 +167,22 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
                  dropout=0.5
     ):
         """Input:
-            # for question embedding
-            ntoken: number of tokens (i.e. size of vocabulary)
-            embed_dim: dimension of question embedding
-            hidden_dim: dimension of hidden layers
-            rnn_layer: number of RNN layers
-
-            # for attention
-            v_dim: dimension of image features
-            att_fc_dim: dimension of attention fc layer
-
-            # for classifier
-            ans_dim: dimension of output (i.e. number of answer candidates)
-            cls_layer: number of non-linear layers in the classifier (default=2)
-            dropout: dropout (default=0.5)
+            For question embedding:
+                ntoken: number of tokens (i.e. size of vocabulary)
+                embed_dim: dimension of question embedding
+                hidden_dim: dimension of hidden layers
+                rnn_layer: number of RNN layers
+            For attention:
+                v_dim: dimension of image features
+                att_fc_dim: dimension of attention fc layer
+            For classifier:
+                ans_dim: dimension of output (i.e. number of answer candidates)
+                cls_layer: number of non-linear layers in the classifier (default=2)
+                dropout: dropout (default=0.5)
         """
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, ans_dim, dropout)
-        self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim) # replace the attention
-        # the forward process is the same
+        self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim) # Replace the attention module
+        # The forward process is the same
 
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
@@ -184,11 +196,14 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  embed_dim: int,
                  hidden_dim: int,
                  rnn_layer: int,
+                 c_len: int,
                  v_dim: int,
                  att_fc_dim: int,
                  ans_dim: int,
-                 cls_layer=2,
-                 dropout=0.5
+                 device: str,
+                 cls_layer: int = 2,
+                 dropout: float = 0.5,
+                 neg_slope: float = 0.2
     ):
         """Input:
             # for question embedding
@@ -197,21 +212,48 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             hidden_dim: dimension of hidden layers
             rnn_layer: number of RNN layers
 
+            # for caption embedding
+            c_len: the maximal length of captions
+
             # for attention
             v_dim: dimension of image features
             att_fc_dim: dimension of attention fc layer
 
             # for classifier
             ans_dim: dimension of output (i.e. number of answer candidates)
-            cls_layer: number of non-linear layers in the classifier (default=2)
-            dropout: dropout (default=0.5)
+            cls_layer: number of non-linear layers in the classifier (default = 2)
+
+            # others:
+            device: device
+            dropout: dropout (default = 0.5)
+            neg_slope: negative slope for Leaky ReLU (default = 0.2)
         """
+
+        ##########################################################################################
+        # Image and Question Embedding
+        ##########################################################################################
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, ans_dim, dropout)
 
-        # caption embedding
+        ##########################################################################################
+        # Caption Embedding
+        ##########################################################################################
+        # Caption embedding module
+        self.caption_embedding = CaptionEmbedding(
+            v_dim=v_dim,
+            q_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout
+        )
 
-        # attention layer for image features based on captions
+        # Attention layer for image features based on caption embedding
         self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
+
+        ##########################################################################################
+        # VQA Module
+        ##########################################################################################
+        # TO DO
 
     def forward_cap(self, v, q, c):
         """
@@ -225,14 +267,36 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         """
         return
 
-    def forward(self, v, q, c):
+    def forward(self, v, q, c, cap_len):
         """
         Forward function for VQA prediction.
 
         Input:
-            v: [batch, v_len, v_dim]
-            c: [batch, c_len]
-            q: [batch, q_len]
+            v: visual features [batch, v_len, v_dim]
+            q: question tokens [batch, q_len]
+            c: caption tokens [batch, c_len (this is the maximal length of captions, not equal to cap_len)]
+            cap_len: ground truth caption length [batch, 1]
         Output:[batch, num_answer_candidate]
         """
+
+        ##########################################################################################
+        # Image and Question Embedding
+        ##########################################################################################
+        # Embed question tokens and take the last output of RNN layer as the question embedding
+        v, q = self.input_embedding(v, q)
+
+        ##########################################################################################
+        # Caption Embedding
+        ##########################################################################################
+        # Embed caption tokens and compute the caption embedding
+        c = self.embedding(c) # [batch, c_len, embed_dim]
+        v = self.h1_v_net(v)
+        q = self.h1_q_net(q)
+        c, _ = self.caption_embedding(v, q, c, cap_len) # [batch, hidden_dim]
+
+        ##########################################################################################
+        # VQA Module
+        ##########################################################################################
+        # (TO DO)
+
         return
