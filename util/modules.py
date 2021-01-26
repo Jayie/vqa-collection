@@ -7,8 +7,6 @@ import torch.nn as nn
 from torch.nn.utils.weight_norm import weight_norm
 from torch.autograd import Variable
 
-from util.attention import CaptionAttention
-
 class FCNet(nn.Module):
     """
     Non-linear fully-connected network.
@@ -81,6 +79,7 @@ class SentenceEmbedding(nn.Module):
     def __init__(   self,
                     in_dim: int,
                     hidden_dim: int,
+                    device: str,
                     rnn_layer: int = 1,
                     dropout: float = 0.5,
                     rnn_type: str = 'LSTM',
@@ -89,10 +88,10 @@ class SentenceEmbedding(nn.Module):
         """Input:
             in_dim: input dimension (i.e. dimension of word embedding)
             hidden_dim: dimension of the hidden state
-            rnn_layer: number of RNN layers
-            dropout: dropout
-            rnn_type: choose the type of RNN (default=LSTM)
-            bidirect: if True, use a bidirectional RNN (default=False)
+            rnn_layer: number of RNN layers (default = 1)
+            dropout: dropout (default = 0.5)
+            rnn_type: choose the type of RNN (default =LSTM)
+            bidirect: if True, use a bidirectional RNN (default = False)
         """
         super().__init__()
         assert rnn_type == 'LSTM' or rnn_type == 'GRU'
@@ -112,16 +111,15 @@ class SentenceEmbedding(nn.Module):
         self.rnn_layer = rnn_layer
         self.rnn_type = rnn_type
         self.ndirections = 1 + int(bidirect)
+        self.device = device
     
     def init_hidden(self, batch):
         """Initialize hidden states."""
-        weight = next(self.parameters()).data
-        hid_shape = (self.rnn_layer * self.ndirections, batch, self.hidden_dim)
+        init = torch.zeros(self.ndirections, batch, self.hidden_dim).to(self.device)
         if self.rnn_type == 'LSTM':
-            return (Variable(weight.new(*hid_shape).zero_()),
-                    Variable(weight.new(*hid_shape).zero_()))
+            return (init, init)
         else:
-            return Variable(weight.new(*hid_shape).zero_())
+            return init
         
     
     def forward_all(self, batch):
@@ -176,6 +174,50 @@ class PretrainedWordEmbedding(nn.Module):
 
         return output.to(self.device)
 
+
+class CaptionAttention(nn.Module):
+    """
+    Caption attention module for caption embedding mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering',
+    which is
+        a = h * f(v) + h * f(q),
+    where h is the the hidden state of the Word GRU, v is the question-attended visual feature, q is the question embedding,
+    and f denotes a fully-connected layers.
+    """
+    def __init__(self,
+                 v_dim: int,
+                 q_dim: int,
+                 hidden_dim: int,
+                 neg_slope: float = 0.2,
+                 dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.W_v = LReLUNet(v_dim, hidden_dim, neg_slope)
+        self.W_q = LReLUNet(q_dim, hidden_dim, neg_slope)
+        self.dropout = nn.Dropout(dropout)
+        self.sigmoid = nn.Sigmoid()
+    
+    def logits(self, h, q):
+        """Input:
+            h: [batch, hidden_dim]
+            q: [batch, hidden_dim]
+        """
+        # element-wise multiply each visual features with question features
+        joint = h * q
+        joint = self.dropout(joint)
+        return joint # [batch, h_len, hidden_dim]
+    
+    def forward(self, h, v, q):
+        """Input:
+            h: [batch, hidden_dim]
+            v: [batch, v_dim]
+            q: [batch, q_dim]
+        Output: [batch, hidden_dim]
+        """
+        v = self.W_v(v) # [batch, hidden_dim]
+        q = self.W_q(q) # [batch, hidden_dim]
+        h = self.logits(h, v) + self.logits(h, q) # [batch, hidden_dim]
+        return self.sigmoid(h)
+
     
 class CaptionEmbedding(nn.Module):
     """
@@ -218,18 +260,17 @@ class CaptionEmbedding(nn.Module):
         # prepare caption attention module
         self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=hidden_dim, dropout=dropout)
         # fully-connected layer
-        self.fcnet = LReLUNet(hidden_dim, hidden_dim)
+        self.fcnet = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         # max-pooling layer
         self.maxpool = nn.MaxPool1d(hidden_dim)
 
     def init_hidden(self, batch):
-        weight = next(self.parameters()).data
-        hid_shape = (batch, self.hidden_dim)
+        """Initialize hidden states."""
+        init = torch.zeros(1, batch, self.hidden_dim).to(self.device)
         if self.rnn_type == 'LSTM':
-            return (Variable(weight.new(*hid_shape).zero_()),
-                    Variable(weight.new(*hid_shape).zero_()))
+            return (init, init)
         else:
-            return Variable(weight.new(*hid_shape).zero_())
+            return init
 
     def select_hidden(self, h, batch):
         if self.rnn_type == 'LSTM':

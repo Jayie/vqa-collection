@@ -42,6 +42,7 @@ def parse_args():
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
     parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
+    parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
 
     args = parser.parse_args()
@@ -52,7 +53,7 @@ def main():
     args = parse_args()
 
     ###### for saving results ######
-    save_path = os.path.join('../checkpoint', args.comment)
+    save_path = os.path.join('checkpoint', args.comment)
     # prepare logger
     logger = Logger(save_path)
     # save the settings
@@ -80,7 +81,8 @@ def main():
         ans_dim=len(ans_list),
         rnn_layer=args.rnn_layer,
         cls_layer=args.cls_layer,
-        dropout=args.dropout
+        dropout=args.dropout,
+        device=device,
     )
     print('model ready.')
 
@@ -110,7 +112,8 @@ def main():
             checkpoint=10000,
             max_norm=0.25,
             comment=args.comment,
-            start_epoch=args.start_epoch
+            start_epoch=args.start_epoch,
+            batches = args.batches
         )
 
     elif args.mode == 'val':

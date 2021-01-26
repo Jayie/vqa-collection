@@ -28,12 +28,13 @@ def compute_score(predict, target, device):
     return scores
 
 
-def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment='', start_epoch=0):
+def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0):
     optimizer = torch.optim.Adamax(model.parameters())
-    writer = SummaryWriter(log_dir='../tensorboard', comment=comment)
+    writer = SummaryWriter(comment=comment)
     best_score = 0
     best_epoch = 0
     
+    model = model.to(device)
     model.train()
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
@@ -41,9 +42,11 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
         prev_loss = 0
         
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
-            v = batch['img']
-            q = batch['q']
-            target = batch['a'].float()
+            if batches != 0 and i == batches: break
+
+            v = batch['img'].to(device)
+            q = batch['q'].to(device)
+            target = batch['a'].float().to(device)
             
             predict = model(v, q)
             

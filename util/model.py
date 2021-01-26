@@ -55,24 +55,25 @@ class BottomUpVQAModel(nn.Module):
                  v_dim: int,
                  att_fc_dim: int,
                  ans_dim: int,
+                 device: str,
                  cls_layer=2,
                  dropout=0.5
     ):
         """Input:
-            # for question embedding
-            ntoken: number of tokens (i.e. size of vocabulary)
-            embed_dim: dimension of embedding
-            hidden_dim: dimension of hidden layers
-            rnn_layer: number of RNN layers
-
-            # for attention
-            v_dim: dimension of image features
-            att_fc_dim: dimension of attention fc layer
-
-            # for classifier
-            ans_dim: dimension of output (i.e. number of answer candidates)
-            cls_layer: number of non-linear layers in the classifier (default=2)
-            dropout: dropout (default=0.5)
+            For question embedding:
+                ntoken: number of tokens (i.e. size of vocabulary)
+                embed_dim: dimension of question embedding
+                hidden_dim: dimension of hidden layers
+                rnn_layer: number of RNN layers
+            For attention:
+                v_dim: dimension of image features
+                att_fc_dim: dimension of attention fc layer
+            For classifier:
+                ans_dim: dimension of output (i.e. number of answer candidates)
+                cls_layer: number of non-linear layers in the classifier (default=2)
+            Others:
+                device: device
+                dropout: dropout (default = 0.5)
         """
 
         super().__init__()
@@ -84,7 +85,8 @@ class BottomUpVQAModel(nn.Module):
             in_dim=embed_dim,
             hidden_dim=hidden_dim,
             rnn_layer=rnn_layer,
-            dropout=dropout
+            dropout=dropout,
+            device=device
         )
         
         # Dropout
@@ -163,27 +165,19 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
                  v_dim: int,
                  att_fc_dim: int,
                  ans_dim: int,
+                 device: str,
                  cls_layer=2,
                  dropout=0.5
     ):
-        """Input:
-            For question embedding:
-                ntoken: number of tokens (i.e. size of vocabulary)
-                embed_dim: dimension of question embedding
-                hidden_dim: dimension of hidden layers
-                rnn_layer: number of RNN layers
-            For attention:
-                v_dim: dimension of image features
-                att_fc_dim: dimension of attention fc layer
-            For classifier:
-                ans_dim: dimension of output (i.e. number of answer candidates)
-                cls_layer: number of non-linear layers in the classifier (default=2)
-                dropout: dropout (default=0.5)
-        """
-        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, ans_dim, dropout)
-        self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim) # Replace the attention module
+        # Replace the attention module
         # The forward process is the same
-
+        super().__init__(
+            ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
+            v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
+            device=device, cls_layer=cls_layer, dropout=dropout
+        )
+        self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
+        
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
     """
@@ -206,33 +200,33 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  neg_slope: float = 0.2
     ):
         """Input:
-            # for question embedding
-            ntoken: number of tokens (i.e. size of vocabulary)
-            embed_dim: dimension of question embedding
-            hidden_dim: dimension of hidden layers
-            rnn_layer: number of RNN layers
-
-            # for caption embedding
-            c_len: the maximal length of captions
-
-            # for attention
-            v_dim: dimension of image features
-            att_fc_dim: dimension of attention fc layer
-
-            # for classifier
-            ans_dim: dimension of output (i.e. number of answer candidates)
-            cls_layer: number of non-linear layers in the classifier (default = 2)
-
-            # others:
-            device: device
-            dropout: dropout (default = 0.5)
-            neg_slope: negative slope for Leaky ReLU (default = 0.2)
+            For question embedding:
+                ntoken: number of tokens (i.e. size of vocabulary)
+                embed_dim: dimension of question embedding
+                hidden_dim: dimension of hidden layers
+                rnn_layer: number of RNN layers
+            For caption embedding
+                c_len: the maximal length of captions
+            For attention:
+                v_dim: dimension of image features
+                att_fc_dim: dimension of attention fc layer
+            For classifier:
+                ans_dim: dimension of output (i.e. number of answer candidates)
+                cls_layer: number of non-linear layers in the classifier (default=2)
+            Others:
+                device: device
+                dropout: dropout (default = 0.5)
+                neg_slope: negative slope for Leaky ReLU (default = 0.2)
         """
 
         ##########################################################################################
         # Image and Question Embedding
         ##########################################################################################
-        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, ans_dim, dropout)
+        super().__init__(
+            ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
+            v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
+            device=device, cls_layer=cls_layer, dropout=dropout
+        )
 
         ##########################################################################################
         # Caption Embedding
