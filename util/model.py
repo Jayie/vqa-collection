@@ -155,8 +155,7 @@ class BottomUpVQAModel(nn.Module):
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
     """
-    This model is based on the winning entry of the 2017 VQA Challenge,
-    but replaces the concat attention in the original design with the dot attention.
+    This model is based on the winning entry of the 2017 VQA Challenge, but replaces the concat attention in the original design with the dot attention.
     """
     def __init__(self,
                  ntoken: int,
@@ -180,10 +179,86 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
         
 
+class VQAEModel(BottomUpVQAModel):
+    """
+    This model follows the system described in 'VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions' (https://arxiv.org/abs/1803.07464)
+    """
+    def __init__(self,
+                 ntoken: int,
+                 embed_dim: int,
+                 hidden_dim: int,
+                 rnn_layer: int,
+                 v_dim: int,
+                 att_fc_dim: int,
+                 c_len: int,
+                 ans_dim: int,
+                 device: str,
+                 cls_layer: int = 2,
+                 dropout: float = 0.5,
+                 neg_slope: float = 0.01
+    ):
+        """Input:
+            For question embedding:
+                ntoken: number of tokens (i.e. size of vocabulary)
+                embed_dim: dimension of question embedding
+                hidden_dim: dimension of hidden layers
+                rnn_layer: number of RNN layers
+            For attention:
+                v_dim: dimension of image features
+                att_fc_dim: dimension of attention fc layer
+            For caption embedding
+                c_len: the maximal length of captions
+            For classifier:
+                ans_dim: dimension of output (i.e. number of answer candidates)
+                cls_layer: number of non-linear layers in the classifier (default=2)
+            Others:
+                device: device
+                dropout: dropout (default = 0.5)
+                neg_slope: negative slope for Leaky ReLU (default = 0.01)
+        """
+
+        ##########################################################################################
+        # Image and Question Embedding
+        ##########################################################################################
+        super().__init__(
+            ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
+            v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
+            device=device, cls_layer=cls_layer, dropout=dropout
+        )
+
+        ##########################################################################################
+        # TODO: Explanation Generation
+        # 
+        ##########################################################################################
+
+        def forward(self, v, q, c, cap_len):
+        """
+        Forward function for VQA prediction.
+
+        Input:
+            v: visual features [batch, v_len, v_dim]
+            q: question tokens [batch, q_len]
+            c: caption tokens [batch, c_len (this is the maximal length of captions, not equal to cap_len)]
+            cap_len: ground truth caption length [batch, 1]
+        Output:[batch, num_answer_candidate]
+        """
+        ##########################################################################################
+        # Image and Question Embedding
+        ##########################################################################################
+        # Embed question tokens and take the last output of RNN layer as the question embedding
+        v, q = self.input_embedding(v, q)
+        vq = v.sum(1) # [batch, hidden_dim]
+
+        ##########################################################################################
+        # TODO: Explanation Generation
+        # 
+        ##########################################################################################
+        return 
+
+
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
     """
-    This model follows the system described in 
-    'Generating Question Relevant Captions to Aid Visual Question Answering' (https://arxiv.org/abs/1906.00513)
+    This model follows the system described in 'Generating Question Relevant Captions to Aid Visual Question Answering' (https://arxiv.org/abs/1906.00513)
     """
 
     def __init__(self,
@@ -266,11 +341,15 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         Forward function for caption generation.
         
         Input:
-            v: [batch, v_len, v_dim]
+            v: question-attended imaghe features [batch, v_len, v_dim]
             c: [batch, c_len]
             q: [batch, q_len]
         Output:[batch, c_len, vocab_dim]
         """
+        ##########################################################################################
+        # TODO: Image captioning module
+        #
+        ##########################################################################################
         return
 
     def forward(self, v, q, c, cap_len):
