@@ -179,7 +179,7 @@ class CaptionAttention(nn.Module):
     """
     Caption attention module for caption embedding mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering',
     which is
-        a = h * f(v) + h * f(q),
+        a = sigmoid(h * f(v) + h * f(q)),
     where h is the the hidden state of the Word GRU, v is the question-attended visual feature, q is the question embedding,
     and f denotes a fully-connected layers.
     """
@@ -187,7 +187,7 @@ class CaptionAttention(nn.Module):
                  v_dim: int,
                  q_dim: int,
                  hidden_dim: int,
-                 neg_slope: float = 0.2,
+                 neg_slope: float = 0.01,
                  dropout: float = 0.2,
     ):
         super().__init__()
@@ -231,7 +231,7 @@ class CaptionEmbedding(nn.Module):
                     max_len: int,
                     device: str,
                     dropout: float = 0.2,
-                    neg_slope: float = 0.2,
+                    neg_slope: float = 0.01,
                     rnn_type: str='GRU',
 
     ):
@@ -241,7 +241,7 @@ class CaptionEmbedding(nn.Module):
             hidden_dim: dimension of the hidden states
             max_len: the maximal length of input captions
             dropout: dropout (default = 0.5)
-            neg_slope: negative slope for 
+            neg_slope: negative slope for Leaky ReLU (default = 0.01)
             rnn_type: choose the type of RNN (default = GRU)
         """
         super().__init__()

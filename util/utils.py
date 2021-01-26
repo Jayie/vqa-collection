@@ -38,11 +38,13 @@ def set_device():
 
 
 class Logger():
-    def __init__(self, save_path, log_name='log.txt'):
+    def __init__(self, exp_name, log_name='log.txt'):
+        save_path = os.path.join('checkpoint', exp_name)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
         self.log_file = open(os.path.join(save_path, log_name), 'w+')
+        self.exp_name = exp_name
     #     self.infos = {}
 
     # def append(self, key, value):

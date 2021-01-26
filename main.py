@@ -55,7 +55,7 @@ def main():
     ###### for saving results ######
     save_path = os.path.join('checkpoint', args.comment)
     # prepare logger
-    logger = Logger(save_path)
+    logger = Logger(args.comment)
     # save the settings
     with open(os.path.join(save_path, 'param.txt'), 'w') as f:
         for key, value in args.__dict__.items():
