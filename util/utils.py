@@ -61,6 +61,6 @@ class Logger():
     #     return msg
 
     def write(self, msg):
-        self.log_file.write(time.strftime("%y%m%d %H:%M:%S ", time.localtime())) # time
+        self.log_file.write(time.strftime("%y%m%d-%H:%M:%S ", time.localtime())) # time
         self.log_file.write(msg+'\n')
         self.log_file.flush()
