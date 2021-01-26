@@ -33,6 +33,7 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
     writer = SummaryWriter(comment=comment)
     best_score = 0
     best_epoch = 0
+    L = len(train_loader.dataset)
     
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
@@ -60,8 +61,8 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
             score = compute_score(predict, target, device).sum().item()
 
             # write loss and score to Tensorboard
-            writer.add_scalar('bottom-up-vqa/loss', loss.item(), i)
-            writer.add_scalar('bottom-up-vqa/score', score, i)
+            writer.add_scalar('bottom-up-vqa/loss', loss.item(), epoch * L + i)
+            writer.add_scalar('bottom-up-vqa/score', score, epoch * L + i)
             
             if i % checkpoint == 0 and i != 0:
                 # save checkpoint

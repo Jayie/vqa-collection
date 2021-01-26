@@ -64,10 +64,10 @@ class LReLUNet(nn.Module):
     """
     def __init__(self, in_dim: int, out_dim: int, neg_slope: float = 0.01):
         super().__init__()
-        self.main = nn.Sequential([
+        self.main = nn.Sequential(
             nn.Linear(in_dim, out_dim, bias=False),
             nn.LeakyReLU(neg_slope)
-        ])
+        )
 
     def forward(self, x):
         return self.main(x)
@@ -115,7 +115,7 @@ class SentenceEmbedding(nn.Module):
     
     def init_hidden(self, batch):
         """Initialize hidden states."""
-        init = torch.zeros(self.ndirections, batch, self.hidden_dim).to(self.device)
+        init = torch.zeros(self.rnn_layer * self.ndirections, batch, self.hidden_dim).to(self.device)
         if self.rnn_type == 'LSTM':
             return (init, init)
         else:
@@ -227,6 +227,7 @@ class CaptionEmbedding(nn.Module):
     def __init__(   self,
                     v_dim: int,
                     q_dim: int,
+                    c_dim: int,
                     hidden_dim: int,
                     max_len: int,
                     device: str,
@@ -238,6 +239,7 @@ class CaptionEmbedding(nn.Module):
         """Input:
             v_dim: dimension of the visual feature
             q_dim: dimension of the question feature
+            c_dim: dimension of the caption embedding
             hidden_dim: dimension of the hidden states
             max_len: the maximal length of input captions
             dropout: dropout (default = 0.5)
@@ -245,6 +247,7 @@ class CaptionEmbedding(nn.Module):
             rnn_type: choose the type of RNN (default = GRU)
         """
         super().__init__()
+        self.c_dim = c_dim
         self.hidden_dim = hidden_dim
         self.max_len = max_len
         self.rnn_type = rnn_type
@@ -254,19 +257,19 @@ class CaptionEmbedding(nn.Module):
         # Since we need to compute the attention for each time step, we use RNN cells here.
         assert rnn_type == 'LSTM' or rnn_type == 'GRU'
         rnn_cls = nn.LSTMCell if rnn_type =='LSTM' else nn.GRUCell
-        self.word_rnn = rnn_cls(input_size=q_dim, hidden_size = hidden_dim)
-        self.caption_rnn = rnn_cls(input_size=hidden_dim, hidden_size = hidden_dim)
+        self.word_rnn = rnn_cls(input_size=c_dim, hidden_size=c_dim)
+        self.caption_rnn = rnn_cls(input_size=c_dim, hidden_size=hidden_dim)
         
         # prepare caption attention module
-        self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=hidden_dim, dropout=dropout)
+        self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=c_dim, dropout=dropout)
         # fully-connected layer
         self.fcnet = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         # max-pooling layer
-        self.maxpool = nn.MaxPool1d(hidden_dim)
+        self.maxpool = nn.MaxPool1d(max_len)
 
-    def init_hidden(self, batch):
+    def init_hidden(self, shape):
         """Initialize hidden states."""
-        init = torch.zeros(1, batch, self.hidden_dim).to(self.device)
+        init = torch.zeros(shape).to(self.device)
         if self.rnn_type == 'LSTM':
             return (init, init)
         else:
@@ -285,18 +288,19 @@ class CaptionEmbedding(nn.Module):
             caption: caption embedding [batch, c_len, c_dim]
             c_len: lengths for each input caption [batch, 1]
         """
+
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         caption = caption[sort_id]
 
         # Initialize LSTM states
         batch = caption.size(0)
-        h1 = self.init_hidden(batch) # [batch, hidden_dim]
-        h2 = self.init_hidden(batch) # [batch, hidden_dim]
+        h1 = self.init_hidden((batch, self.c_dim)) # [batch, c_dim]
+        h2 = self.init_hidden((batch, self.hidden_dim)) # [batch, hidden_dim]
 
         # Create tensor to hold the caption embedding after all time steps
         output = torch.zeros(batch, self.hidden_dim, self.max_len).to(self.device)
-        alphas = torch.zeros(batch, self.max_len, self.hidden_dim).to(self.device)
+        alphas = torch.zeros(batch, self.max_len, self.c_dim).to(self.device)
 
         # This list is for saving the batch size for each time step
         batches = []
@@ -307,20 +311,21 @@ class CaptionEmbedding(nn.Module):
             batches.append(batch_t)
 
             # 1: Word RNN
-            # Input: input = [batch_t, q_dim], h1 = [batch_t, hidden_dim]
-            # Output: [batch_t, hidden_dim]
+            # Input = caption: [batch_t, q_dim], h1: [batch_t, c_dim]
+            # Output = h1: [batch_t, c_dim]
             h1 = self.select_hidden(h1, batch_t)
             h1 = self.word_rnn(caption[:batch_t, t, :], h1)
 
             # Attention
             if self.rnn_type == 'LSTM': h1 = h1[0]
-            att = self.attention(h1, v, q) # [batch_t, hidden_dim]
+            att = self.attention(h1, v[:batch_t, :], q[:batch_t, :]) # [batch_t, c_dim]
+            att = att * caption[:batch_t, t, :] # [batch_t, c_dim]
 
             # 2: Caption RNN
-            # Input = att_c: [batch_t, hidden_dim], h2 = batch_t, hidden_dim
+            # Input = att_c: [batch_t, c_dim], h2 = [batch_t, hidden_dim]
             # Output = h2: [batch_t, hidden_dim]
             h2 = self.select_hidden(h2, batch_t)
-            h2 = self.caption_rnn(att*caption[:batch_t, t, :], h2)
+            h2 = self.caption_rnn(att, h2)
 
             # Fully-connected layer
             h2 = self.fcnet(h2)
@@ -328,7 +333,6 @@ class CaptionEmbedding(nn.Module):
             # Save the results
             output[:batch_t, :, t] = h2
             alphas[:batch_t, t, :] = att
-
         # Element-wise max pooling
         output = self.maxpool(output).squeeze() # [batch, hidden_dim]
 

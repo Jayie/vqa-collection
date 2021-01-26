@@ -191,9 +191,9 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  embed_dim: int,
                  hidden_dim: int,
                  rnn_layer: int,
-                 c_len: int,
                  v_dim: int,
                  att_fc_dim: int,
+                 c_len: int,
                  ans_dim: int,
                  device: str,
                  cls_layer: int = 2,
@@ -206,11 +206,11 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                 embed_dim: dimension of question embedding
                 hidden_dim: dimension of hidden layers
                 rnn_layer: number of RNN layers
-            For caption embedding
-                c_len: the maximal length of captions
             For attention:
                 v_dim: dimension of image features
                 att_fc_dim: dimension of attention fc layer
+            For caption embedding
+                c_len: the maximal length of captions
             For classifier:
                 ans_dim: dimension of output (i.e. number of answer candidates)
                 cls_layer: number of non-linear layers in the classifier (default=2)
@@ -234,8 +234,9 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         ##########################################################################################
         # Caption embedding module
         self.caption_embedding = CaptionEmbedding(
-            v_dim=v_dim,
-            q_dim=embed_dim,
+            v_dim=hidden_dim,
+            q_dim=hidden_dim,
+            c_dim=embed_dim,
             hidden_dim=hidden_dim,
             max_len=c_len,
             device=device,
@@ -250,17 +251,17 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         ##########################################################################################
         # For caption-attended visual features
         self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
-        self.vq_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
+        self.vq_net = LReLUNet(v_dim, hidden_dim, neg_slope)
         self.joint_c_vq = LReLUNet(hidden_dim, hidden_dim, neg_slope)
 
         # For incorporating the information from the captions
         self.vqc_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
-        self.final_net = nn.Sequential([
+        self.cls_layer = nn.Sequential(
             LReLUNet(hidden_dim, ans_dim, neg_slope),
             nn.Sigmoid()
-        ])
+        )
 
-    def forward_cap(self, v, q, c):
+    def forward_cap(self, v, q, c, cap_len):
         """
         Forward function for caption generation.
         
@@ -289,7 +290,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         ##########################################################################################
         # Embed question tokens and take the last output of RNN layer as the question embedding
         v, q = self.input_embedding(v, q)
-        vq = v.sum(1) # [batch, v_dim]
+        vq = v.sum(1) # [batch, hidden_dim]
 
         ##########################################################################################
         # Caption Embedding
@@ -297,8 +298,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # Embed caption tokens and compute the caption embedding
         c = self.embedding(c) # [batch, c_len, embed_dim]
         vq = self.v_net(vq) # [batch, hidden_dim]
-        q = self.q_net(q) # [batch, hidden_dim]
-        c, _ = self.caption_embedding(vq, q, c, cap_len) # [batch, hidden_dim]
+        c, _ = self.caption_embedding(vq, self.q_net(q), c, cap_len) # [batch, hidden_dim]
 
         ##########################################################################################
         # VQA Module
@@ -306,7 +306,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # Produce caption-attended features
         v = self.vq_net(v) # [batch, num_objs, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
-        joint = self.joint_c_vq(c * v)
+        joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, v.size(1), 1) * v)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
         v = (joint * v).sum(1) # [batch, hidden_dim]
 
@@ -314,6 +314,6 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # and then element-wise multiply by the question features.
         v = self.vqc_net(v) # [batch, hidden_dim]
         joint = q * (v + c) # [batch, hidden_dim]
-        joint = self.final_net(joint) # [batch, ans_dim]
+        joint = self.cls_layer(joint) # [batch, ans_dim]
 
         return joint
