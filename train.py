@@ -6,12 +6,11 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-# Loss function
+# Loss function for VQA
 def instance_bce_with_logits(predict, target):
     loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
     loss *= target.size(1)
     return loss
-
 
 # Compute score (according to the VQA evaluation metric)
 def compute_score(predict, target, device):
@@ -28,12 +27,28 @@ def compute_score(predict, target, device):
     return scores
 
 
-def train(model, train_loader, val_loader, num_epoches, save_path, device, logger, checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0):
+def train(  model, train_loader, val_loader, num_epoches, save_path, device, logger,
+            checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0, model_type='base'
+    ):
+    """
+    Train process.
+    Input:
+        model: the model we want to train
+        train_loader/val_loader: training/validation dataloader,
+        start_epoch/num_epoches: start from the start_epoch (default = 0), and end at the num_epoches
+        save_path: path for saving models
+        device: device
+        logger: logger for writing log file
+        checkpoint: save model status for each N batches (default = 10000)
+        max_norm: for clip_grad_norm (default = 0.25)
+        batches: only run the first N batches per epoch, if = 0 then run the whole epoch (default = 0)
+        model_type: the type of model, the inputs and loss function we use depend on this (default = base, i.e. Bottom-Up and Top-Down model)
+    """
     optimizer = torch.optim.Adamax(model.parameters())
     writer = SummaryWriter(comment=comment)
     best_score = 0
     best_epoch = 0
-    L = len(train_loader.dataset)
+    if batches == 0: batches = len(train_loader)
     
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
@@ -43,15 +58,25 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
         prev_loss = 0
         
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
-            if batches != 0 and i == batches: break
+            if i == batches: break
 
-            v = batch['img'].to(device)
-            q = batch['q'].to(device)
             target = batch['a'].float().to(device)
-            
-            predict, v = model(v, q)
-            
+            predict, v = model(batch)
             loss = instance_bce_with_logits(predict, target)
+            
+            # Get additional inputs, and then produce predicted results and loss depending on which type of the model is.
+            if model_type == 'vqa-e':
+                ############################
+                # TODO: loss += Lvqe
+                ############################
+                pass
+
+            elif model_type == 'q-caption':
+                ############################
+                # TODO: loss += Lc
+                ############################
+                pass
+
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
@@ -61,8 +86,8 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
             score = compute_score(predict, target, device).sum().item()
 
             # write loss and score to Tensorboard
-            writer.add_scalar('bottom-up-vqa/loss', loss.item(), epoch * L + i)
-            writer.add_scalar('bottom-up-vqa/score', score, epoch * L + i)
+            writer.add_scalar(f'{model_type}/loss', loss.item(), epoch * batches + i)
+            writer.add_scalar(f'{model_type}/score', score, epoch * batches + i)
             
             if i % checkpoint == 0 and i != 0:
                 # save checkpoint
@@ -103,12 +128,8 @@ def evaluate(model, dataloader, device, logger=None):
     start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='eval')):
-            v = batch['img'].to(device)
-            q = batch['q'].to(device)
             target = batch['a'].float().to(device)
-            
-            predict, _ = model(v, q)
-            
+            predict, _ = model(batch)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
             

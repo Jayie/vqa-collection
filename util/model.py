@@ -17,6 +17,8 @@ def set_model(model_type: str):
         'base': BottomUpVQAModel,
         # bottom-up VQA with dot attention
         'new': NewBottomUpVQAModel,
+        # VQA-E
+        'vqa-e': VQAEModel,
         # VQA with Generating Question Relevant Captions
         'q-caption': QuestionRelevantCaptionsVQAModel,
     }
@@ -77,6 +79,8 @@ class BottomUpVQAModel(nn.Module):
         """
 
         super().__init__()
+        self.device = device
+
         # Word embedding for question
         self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
         
@@ -120,13 +124,15 @@ class BottomUpVQAModel(nn.Module):
         v = v_att * v # [batch, num_objs, v_dim]
         return v, q
 
-    def forward(self, v, q):
+    def forward(self, batch):
         """
         Input:
             v: [batch, v_len, v_dim]
             q: [batch, q_len]
         Output:[batch, num_answer_candidate]
         """
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
         
         ##########################################################################################
         # # Embed words and take the last output of RNN layer as the question embedding
@@ -138,8 +144,8 @@ class BottomUpVQAModel(nn.Module):
         # # Get question-attended visual feature vq
         # v = (v_att * v).sum(1) # [batch, v_dim]
         ##########################################################################################
-        v, q = self.input_embedding(v, q)
-        v = v.sum(1) # [batch, v_dim]
+        visual_feature, q = self.input_embedding(v, q)
+        v = visual_feature.sum(1) # [batch, v_dim]
         
         # FC layers
         q = self.q_net(q) # [batch, hidden_dim]
@@ -152,7 +158,7 @@ class BottomUpVQAModel(nn.Module):
         joint = self.classifier(joint) # [batch, num_answer_candidate]
         
         # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
-        return joint, v
+        return joint, visual_feature
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
@@ -181,7 +187,7 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
         
 
-class VQAEModel(BottomUpVQAModel):
+class VQAEModel(NewBottomUpVQAModel):
     """
     This model follows the system described in 'VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions' (https://arxiv.org/abs/1803.07464)
     """
@@ -227,36 +233,6 @@ class VQAEModel(BottomUpVQAModel):
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
             device=device, cls_layer=cls_layer, dropout=dropout
         )
-
-        ##########################################################################################
-        # TODO: Explanation Generation
-        # 
-        ##########################################################################################
-
-        def forward(self, v, q, c, cap_len):
-            """
-            Forward function for VQA prediction.
-
-            Input:
-                v: visual features [batch, v_len, v_dim]
-                q: question tokens [batch, q_len]
-                c: caption tokens [batch, c_len (this is the maximal length of captions, not equal to cap_len)]
-                cap_len: ground truth caption length [batch, 1]
-            Output:[batch, num_answer_candidate]
-            """
-
-            ##########################################################################################
-            # Image and Question Embedding
-            ##########################################################################################
-            # Embed question tokens and take the last output of RNN layer as the question embedding
-            v, q = self.input_embedding(v, q)
-            vq = v.sum(1) # [batch, hidden_dim]
-
-            ##########################################################################################
-            # TODO: Explanation Generation
-            # 
-            ##########################################################################################
-            return 
 
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
@@ -355,7 +331,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         ##########################################################################################
         return
 
-    def forward(self, v, q, c, cap_len):
+    def forward(self, batch):
         """
         Forward function for VQA prediction.
 
@@ -367,12 +343,18 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         Output:[batch, num_answer_candidate]
         """
 
+        v = batch['img'].to(self.device)
+        c = batch['c'].to(self.device)
+        q = batch['q'].to(self.device)
+        cap_len = batch['l_c'].to(self.device)
+
+
         ##########################################################################################
         # Image and Question Embedding
         ##########################################################################################
         # Embed question tokens and take the last output of RNN layer as the question embedding
-        v, q = self.input_embedding(v, q)
-        vq = v.sum(1) # [batch, hidden_dim]
+        visual_feature, q = self.input_embedding(v, q)
+        vq = visual_feature.sum(1) # [batch, hidden_dim]
 
         ##########################################################################################
         # Caption Embedding
@@ -386,7 +368,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # VQA Module
         ##########################################################################################
         # Produce caption-attended features
-        vq = self.vq_net(v) # [batch, num_objs, hidden_dim]
+        vq = self.vq_net(visual_feature) # [batch, num_objs, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
         joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, vq.size(1), 1) * vq)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
@@ -399,7 +381,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         joint = self.cls_layer(joint) # [batch, ans_dim]
         
         # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
-        return joint, v
+        return joint, visual_feature
 
 
 class CaptionDecoder(nn.Module):

@@ -104,6 +104,7 @@ def main():
         print('start training.')
         train(
             model=model,
+            model_type=args.model,
             train_loader=train_loader,
             val_loader=val_loader,
             num_epoches=args.epoches,
@@ -114,7 +115,7 @@ def main():
             max_norm=0.25,
             comment=args.comment,
             start_epoch=args.start_epoch,
-            batches = args.batches
+            batches = args.batches,
         )
 
     elif args.mode == 'val':
