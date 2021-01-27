@@ -346,7 +346,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         v = batch['img'].to(self.device)
         c = batch['c'].to(self.device)
         q = batch['q'].to(self.device)
-        cap_len = batch['l_c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
 
 
         ##########################################################################################

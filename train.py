@@ -52,11 +52,11 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
     
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
-        model.train()
         start = time.time()
         avg_loss = 0
         prev_loss = 0
         
+        model.train()
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
 
