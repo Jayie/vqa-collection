@@ -15,12 +15,12 @@ PyTorch implementation of VQA models, including:
 
 
 
-| Model | Caption generation | Gragh network | Use$L_{cap}$ |
-| :-: | :-: | :-: | :-: |
-| Up-Down |   |   |   |
-| VQA-E | v |   |   |
-| Q-Relevant | v |   | $L^c_i = - \sum_{t=1}^T \log(p(w^c_{i,t} \mid w^c_{i,t-1}))$, back-propagate the gradients only from the most relevant captions |
-| ReGAT |   | v |   |
+| Model | Caption generation | Gragh network | Use $`L_{cap}`$ |
+|:-:|:-:|:-:|:-:|
+| Up-Down |  |  |  |
+| VQA-E | v |  |
+| Q-Relevant | v |  | $`L^c_i = - \sum_{t=1}^T \log(p(w^c_{i,t} \mid w^c_{i,t-1}))`$, back-propagate the gradients only from the most relevant captions |
+| ReGAT |  | v | |
 
 
 ## Preprocessing
