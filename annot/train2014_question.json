@@ -1,1 +1,0 @@
-{"description": "This is VQA v2.0 questions dataset.", "data_type": "train2014", "data": [{"img_file": "COCO_train2014_000000458752.npz", "q_word": "what is this photo taken looking through", "q": [102, 14, 37, 3119, 492, 862, 131, 400003, 400003, 400003]}]}
