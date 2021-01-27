@@ -38,6 +38,7 @@ def preprocessing(
     save_path: str = 'annot',
     c_len: int = 20,
     q_len: int = 10,
+    answer_type: str = ''
 ):
     """
     Dataset preprocessing.
@@ -46,12 +47,14 @@ def preprocessing(
     vocab_path: path for vocabulary
     ans_vocab_path: path for answer candidate vocabulary
     feature_path: path for extracted COCO image features
-    dataset_type: train2014/val2014
-    save_path: path for saving preprocessed files
-    c_len: the maximal length of captions
-    q_len: the maximal length of questions
+    dataset_type: train2014/val2014 (default = train2014)
+    save_path: path for saving preprocessed files (default = annot)
+    c_len: the maximal length of captions (default = 20)
+    q_len: the maximal length of questions (default = 10)
+    answer_type: only save datas with answer type 'yes/no' , 'number', or 'other' (default = '' means save all kinds of answer type)
     """
     # Check if save_path exist
+    save_path = os.path.join(save_path, answer_type)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
@@ -91,6 +94,37 @@ def preprocessing(
                                 'data': data}))
 
     #########################################################################
+    # Read VQA annotation dataset
+    with open(f'{vqa_path}/v2_mscoco_{dataset_type}_annotations.json') as f:
+        a_json = json.load(f)['annotations']
+        print('Load answer json file.')
+    
+    q_id = []
+    data = []
+    for i in tqdm(range(len(a_json)), desc='answer'):
+        # If only select certain answer type
+        if answer_type != '' and a_json[i]['answer_type'] != answer_type:
+            continue
+        
+        q_id.append(a_json[i]['question_id'])
+
+        image_id = a_json[i]['image_id']
+        answers = []
+        for a in a_json[i]['answers']:
+            answers.append(a['answer'])
+        ans_dict = {}
+        for a in set(answers):
+            if a in ans_list: ans_dict[ans_list.index(a)] = answers.count(a)
+        data.append(ans_dict)
+
+    # Save answer dataset
+    save_file(file_name=f'{save_path}/{dataset_type}_answers.json',
+              desc='This is VQA v2.0 answers dataset.',
+              data_type=dataset_type, data=data
+    )
+    print('answer dataset saved.')
+
+    #########################################################################
     # Read VQA question dataset
     with open(f'{vqa_path}/v2_OpenEnded_mscoco_{dataset_type}_questions.json') as f:
         q_json = json.load(f)['questions']
@@ -99,6 +133,9 @@ def preprocessing(
     image_ids = []
     data = []
     for i in tqdm(range(len(q_json)), desc='question'):
+        if q_json[i]['question_id'] not in q_id:
+            continue
+        
         image_id = q_json[i]['image_id']
         image_ids.append(image_id)
         words, tokens = get_tokens(q_json[i]['question'])
@@ -110,35 +147,11 @@ def preprocessing(
         })
 
     # Save question dataset
-    save_file(file_name=f'{save_path}/{dataset_type}_question.json',
+    save_file(file_name=f'{save_path}/{dataset_type}_questions.json',
               desc='This is VQA v2.0 questions dataset.',
               data_type=dataset_type, data=data
     )
-    print('Question dataset saved.')
-
-    #########################################################################
-    # Read VQA annotation dataset
-    with open(f'{vqa_path}/v2_mscoco_{dataset_type}_annotations.json') as f:
-        a_json = json.load(f)['annotations']
-        print('Load answer json file.')
-    
-    data = []
-    for i in tqdm(range(len(a_json)), desc='answer'):
-        image_id = a_json[i]['image_id']
-        answers = []
-        for a in a_json[i]['answers']:
-            answers.append(a['answer'])
-        ans_dict = {}
-        for a in set(answers):
-            if a in ans_list: ans_dict[a] = answers.count(a)
-        data.append(ans_dict)
-
-    # Save answer dataset
-    save_file(file_name=f'{save_path}/{dataset_type}_answers.json',
-              desc='This is VQA v2.0 answers dataset.',
-              data_type=dataset_type, data=data
-    )
-    print('Answer dataset saved.')
+    print('question dataset saved.')
 
     #########################################################################
     # Read COCO Captions dataset
@@ -171,7 +184,7 @@ def preprocessing(
               desc='This is COCO Captions dataset.',
               data_type=dataset_type, data=data
     )
-    print('Caption dataset saved.')
+    print('caption dataset saved.')
 
     return
 

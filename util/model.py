@@ -124,26 +124,7 @@ class BottomUpVQAModel(nn.Module):
         v = v_att * v # [batch, num_objs, v_dim]
         return v, q
 
-    def forward(self, batch):
-        """
-        Input:
-            v: [batch, v_len, v_dim]
-            q: [batch, q_len]
-        Output:[batch, num_answer_candidate]
-        """
-        v = batch['img'].to(self.device)
-        q = batch['q'].to(self.device)
-        
-        ##########################################################################################
-        # # Embed words and take the last output of RNN layer as the question embedding
-        # q = self.embedding(q) # [batch, q_len, q_embed_dim]
-        # q = self.q_rnn(q) # [batch, hidden_dim]
-        
-        # # Get the attention of visual features based on question embedding
-        # v_att = self.attention(v, q) # [batch, num_objs, 1]
-        # # Get question-attended visual feature vq
-        # v = (v_att * v).sum(1) # [batch, v_dim]
-        ##########################################################################################
+    def forward_vqa(self, v, q):
         visual_feature, q = self.input_embedding(v, q)
         v = visual_feature.sum(1) # [batch, v_dim]
         
@@ -159,6 +140,19 @@ class BottomUpVQAModel(nn.Module):
         
         # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
         return joint, visual_feature
+
+    def forward(self, batch):
+        """
+        Input:
+            v: [batch, v_len, v_dim]
+            q: [batch, q_len]
+        Output:[batch, num_answer_candidate]
+        """
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        return self.forward_vqa(v, q)
+        
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
@@ -225,13 +219,22 @@ class VQAEModel(NewBottomUpVQAModel):
                 neg_slope: negative slope for Leaky ReLU (default = 0.01)
         """
 
-        ##########################################################################################
-        # Image and Question Embedding
-        ##########################################################################################
+        # VQA module
         super().__init__(
             ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
             device=device, cls_layer=cls_layer, dropout=dropout
+        )
+
+        # Caption generator
+        self.generator = CaptionDecoder(
+            ntoken=ntoken,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            v_dim=v_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout,
         )
 
 
@@ -330,8 +333,8 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         #
         ##########################################################################################
         return
-
-    def forward(self, batch):
+    
+    def forward_vqa(self, v, q, c, cap_len):
         """
         Forward function for VQA prediction.
 
@@ -342,13 +345,6 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             cap_len: ground truth caption length [batch, 1]
         Output:[batch, num_answer_candidate]
         """
-
-        v = batch['img'].to(self.device)
-        c = batch['c'].to(self.device)
-        q = batch['q'].to(self.device)
-        cap_len = batch['cap_len'].to(self.device)
-
-
         ##########################################################################################
         # Image and Question Embedding
         ##########################################################################################
@@ -380,7 +376,17 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         joint = q * (vq + c) # [batch, hidden_dim]
         joint = self.cls_layer(joint) # [batch, ans_dim]
         
-        # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
+        # Return: joint (logits of predictor), visual_feature (for caption generator)
+        return joint, visual_feature
+
+    def forward(self, batch):
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        c = batch['c'].to(self.device)
+        q = batch['q'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        
+        joint, visual_feature = self.forward_vqa(v, q, c, cap_len)
         return joint, visual_feature
 
 
