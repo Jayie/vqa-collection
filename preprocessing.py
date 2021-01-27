@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--ans_vocab_path', type=str, default='../data/answer_candidate.txt')
     parser.add_argument('--feature_path', type=str, default='../COCO_feature_36')
     parser.add_argument('--dataset_type', type=str, default='train2014')
-    parser.add_argument('--save_path', type=str, default='annot')
+    parser.add_argument('--save_path', type=str, default='../annot')
     parser.add_argument('--c_len', type=int, default=20)
     parser.add_argument('--q_len', type=int, default=10)
     
