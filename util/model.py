@@ -150,7 +150,9 @@ class BottomUpVQAModel(nn.Module):
         
         # Predict answer
         joint = self.classifier(joint) # [batch, num_answer_candidate]
-        return joint
+        
+        # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
+        return joint, v
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
@@ -384,19 +386,20 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # VQA Module
         ##########################################################################################
         # Produce caption-attended features
-        v = self.vq_net(v) # [batch, num_objs, hidden_dim]
+        vq = self.vq_net(v) # [batch, num_objs, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
-        joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, v.size(1), 1) * v)
+        joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, vq.size(1), 1) * vq)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
-        v = (joint * v).sum(1) # [batch, hidden_dim]
+        vq = (joint * vq).sum(1) # [batch, hidden_dim]
 
         # To better incorporate the information from the captions into the VQA process, add the caption feature ot the attended image features,
         # and then element-wise multiply by the question features.
-        v = self.vqc_net(v) # [batch, hidden_dim]
-        joint = q * (v + c) # [batch, hidden_dim]
+        vq = self.vqc_net(vq) # [batch, hidden_dim]
+        joint = q * (vq + c) # [batch, hidden_dim]
         joint = self.cls_layer(joint) # [batch, ans_dim]
-
-        return joint
+        
+        # Return: joint = logits of predictor, v = visual embeddings (for caption generator)
+        return joint, v
 
 
 class CaptionDecoder(nn.Module):
@@ -537,4 +540,6 @@ class CaptionDecoder(nn.Module):
         
         # Softmax
         output = self.softmax(output)
+
+        # Return: output = generated captions, alphas = attention map
         return output[restore_id,:,:], alphas[restore_id,:,:]

@@ -53,6 +53,16 @@ def main():
     # get parameters
     args = parse_args()
 
+    ###### settings ######
+    # set random seed
+    random_seed(args.seed)
+    # set device
+    args.device = args.device if args.device != '' else set_device()
+    # prepare vocabulary list
+    vocab_list = get_vocab_list(args.vocab_path)
+    # answer candidate list
+    ans_list = get_vocab_list(args.ans_path)
+
     ###### for saving results ######
     save_path = os.path.join('checkpoint', args.comment)
     # prepare logger
@@ -61,16 +71,6 @@ def main():
     with open(os.path.join(save_path, 'param.txt'), 'w') as f:
         for key, value in args.__dict__.items():
             f.write(f'{key}: {value}\n')
-
-    ###### settings ######
-    # set random seed
-    random_seed(args.seed)
-    # set device
-    device = args.device if args.device != '' else set_device()
-    # prepare vocabulary list
-    vocab_list = get_vocab_list(args.vocab_path)
-    # answer candidate list
-    ans_list = get_vocab_list(args.ans_path)
 
     # setup model
     model = set_model(args.model)(
@@ -83,7 +83,7 @@ def main():
         rnn_layer=args.rnn_layer,
         cls_layer=args.cls_layer,
         dropout=args.dropout,
-        device=device,
+        device=args.device,
     )
     print('model ready.')
 
@@ -108,7 +108,7 @@ def main():
             val_loader=val_loader,
             num_epoches=args.epoches,
             save_path=save_path,
-            device=device,
+            device=args.device,
             logger=logger,
             checkpoint=10000,
             max_norm=0.25,
@@ -131,7 +131,7 @@ def main():
         score, _ = evaluate(
             model=model,
             dataloader=val_loader,
-            device=device,
+            device=args.device,
             logger=logger
         )
 

@@ -43,7 +43,8 @@ class Logger():
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        self.log_file = open(os.path.join(save_path, log_name), 'w+')
+        t = time.strftime("%y%m%d-%H-%M-%S_", time.localtime()) # timestamp
+        self.log_file = open(os.path.join(save_path, t + log_name), 'w+')
         self.exp_name = exp_name
     #     self.infos = {}
 
@@ -61,6 +62,6 @@ class Logger():
     #     return msg
 
     def write(self, msg):
-        self.log_file.write(time.strftime("%y%m%d-%H:%M:%S ", time.localtime())) # time
+        self.log_file.write(time.strftime("%y%m%d-%H:%M:%S ", time.localtime())) # timestamp
         self.log_file.write(msg+'\n')
         self.log_file.flush()

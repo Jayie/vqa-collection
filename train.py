@@ -49,7 +49,7 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
             q = batch['q'].to(device)
             target = batch['a'].float().to(device)
             
-            predict = model(v, q)
+            predict, v = model(v, q)
             
             loss = instance_bce_with_logits(predict, target)
             loss.backward()
@@ -107,7 +107,7 @@ def evaluate(model, dataloader, device, logger=None):
             q = batch['q'].to(device)
             target = batch['a'].float().to(device)
             
-            predict = model(v, q)
+            predict, _ = model(v, q)
             
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
