@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 def get_vocab_list(vocab_path):
-    with open(vocab_path) as f:
+    with open(vocab_path, encoding='utf-8') as f:
         vocab_list = f.read().split('\n')
     return vocab_list
 
