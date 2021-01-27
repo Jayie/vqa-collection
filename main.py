@@ -6,6 +6,7 @@ import traceback
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from dataset import set_dataset
 from util.model import set_model
@@ -127,12 +128,30 @@ def main():
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
 
         # evaluate
-        evaluate(
+        score, _ = evaluate(
             model=model,
             dataloader=val_loader,
             device=device,
             logger=logger
         )
+
+        # Write the results to Tensorboard
+        with SummaryWriter() as w:
+            w.add_hparams(
+                hparam_dict={
+                    'name': args.comment,
+                    'embed_dim': args.embed_dim,
+                    'hidden_dim': args.hidden_dim,
+                    'att_fc_dim': args.att_fc_dim,
+                    'rnn_layer': args.rnn_layer,
+                    'cls_layer': args.cls_layer,
+                    'epoches': args.epoches,
+                    'dropout': args.dropout,
+                },
+                metric_dict={
+                    'hparam/score': score
+                }
+            )
 
 
 if __name__ == '__main__':

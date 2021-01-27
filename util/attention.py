@@ -34,10 +34,10 @@ class ConcatAttention(nn.Module):
     def forward(self, v, q):
         """
         Input:
-        v: [batch, v_len, v_dim]
+        v: [batch, num_objs, v_dim]
         q: [batch, q_dim]
         
-        Output:[batch, num_obj, 1]
+        Output:[batch, num_objs, 1]
         """
         logits = self.logits(v,q)
         return nn.functional.softmax(logits, 1)

@@ -94,9 +94,8 @@ def train(model, train_loader, val_loader, num_epoches, save_path, device, logge
 
         logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
 
-def evaluate(model, dataloader, device, logger=None, exp_name=''):
+def evaluate(model, dataloader, device, logger=None):
     score = 0
-    avg_loss = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     
     model = model.to(device)
@@ -109,8 +108,6 @@ def evaluate(model, dataloader, device, logger=None, exp_name=''):
             target = batch['a'].float().to(device)
             
             predict = model(v, q)
-            loss = instance_bce_with_logits(predict, target)
-            avg_loss += loss.item()
             
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
@@ -120,18 +117,10 @@ def evaluate(model, dataloader, device, logger=None, exp_name=''):
     l = len(dataloader.dataset)
     score /= l
     target_score /= l
-    avg_loss /= l
 
     if logger != None:
         # Write to the log file
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
-    
-        # Write the results to Tensorboard
-        with SummaryWriter() as w:
-            w.add_hparams(
-                hparam_dict={'name': exp_name},
-                metric_dict={'hparam/loss': avg_loss, 'hparam/score': score}
-            )
     
     return score, target_score

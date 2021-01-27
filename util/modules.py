@@ -5,7 +5,6 @@ import torch
 import torch.optim
 import torch.nn as nn
 from torch.nn.utils.weight_norm import weight_norm
-from torch.autograd import Variable
 
 class FCNet(nn.Module):
     """
@@ -59,8 +58,10 @@ class FCNet(nn.Module):
 
 class LReLUNet(nn.Module):
     """
-    Fully-connected layer with Leaky ReLU used in 'Generating Question Relevant Captions to Aid Visual Question Answering',
-    which is f(x) = LReLU(Wx + b) with input features x and ignore the notation of weights and biases for simplicity.
+    Fully-connected layer with Leaky ReLU used in 'Generating Question Relevant Captions to Aid Visual Question Answering'
+    , which is
+        f(x) = LReLU(Wx + b)
+    with input features x and ignore the notation of weights and biases for simplicity.
     """
     def __init__(self, in_dim: int, out_dim: int, neg_slope: float = 0.01):
         super().__init__()
@@ -177,8 +178,8 @@ class PretrainedWordEmbedding(nn.Module):
 
 class CaptionAttention(nn.Module):
     """
-    Caption attention module for caption embedding mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering',
-    which is
+    Caption attention module for caption embedding mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering'
+    , which is
         a = sigmoid(h * f(v) + h * f(q)),
     where h is the the hidden state of the Word GRU, v is the question-attended visual feature, q is the question embedding,
     and f denotes a fully-connected layers.
@@ -221,7 +222,7 @@ class CaptionAttention(nn.Module):
     
 class CaptionEmbedding(nn.Module):
     """
-    Caption embedding module mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering'.
+    Caption embedding module mentioned in 'Generating Question Relevant Captions to Aid Visual Question Answering'
     This module would consider the question-attended visual feature, question features, and hidden states of word embeddings.
     """
     def __init__(   self,
@@ -283,7 +284,7 @@ class CaptionEmbedding(nn.Module):
 
     def forward(self, v, q, caption, cap_len):
         """Input:
-            v: visual feature [batch, v_dim]
+            v: visual features [batch, v_dim]
             q: question embedding [batch, q_dim]
             caption: caption embedding [batch, c_len, c_dim]
             c_len: lengths for each input caption [batch, 1]
@@ -292,8 +293,10 @@ class CaptionEmbedding(nn.Module):
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         caption = caption[sort_id]
+        v = v[sort_id]
+        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
 
-        # Initialize LSTM states
+        # Initialize RNN states
         batch = caption.size(0)
         h1 = self.init_hidden((batch, self.c_dim)) # [batch, c_dim]
         h2 = self.init_hidden((batch, self.hidden_dim)) # [batch, hidden_dim]
@@ -306,34 +309,35 @@ class CaptionEmbedding(nn.Module):
         batches = []
         # For each time step:
         for t in range(max(cap_len)):
-            # Only generate captions which is longer than t(ignor <pad>)
+            # Only encode captions which is longer than t (ignore <pad>)
             batch_t = sum([l > t for l in cap_len])
             batches.append(batch_t)
+            h1 = self.select_hidden(h1, batch_t)
+            h2 = self.select_hidden(h2, batch_t)
 
             # 1: Word RNN
             # Input = caption: [batch_t, q_dim], h1: [batch_t, c_dim]
             # Output = h1: [batch_t, c_dim]
-            h1 = self.select_hidden(h1, batch_t)
             h1 = self.word_rnn(caption[:batch_t, t, :], h1)
+            h = h1[0] if self.rnn_type == 'LSTM' else h1
 
             # Attention
-            if self.rnn_type == 'LSTM': h1 = h1[0]
-            att = self.attention(h1, v[:batch_t, :], q[:batch_t, :]) # [batch_t, c_dim]
+            att = self.attention(h, v[:batch_t, :], q[:batch_t, :]) # [batch_t, c_dim]
             att = att * caption[:batch_t, t, :] # [batch_t, c_dim]
 
             # 2: Caption RNN
             # Input = att_c: [batch_t, c_dim], h2 = [batch_t, hidden_dim]
             # Output = h2: [batch_t, hidden_dim]
-            h2 = self.select_hidden(h2, batch_t)
             h2 = self.caption_rnn(att, h2)
+            h = h2[0] if self.rnn_type == 'LSTM' else h2
 
             # Fully-connected layer
-            h2 = self.fcnet(h2)
+            h = self.fcnet(h)
 
             # Save the results
-            output[:batch_t, :, t] = h2
+            output[:batch_t, :, t] = h
             alphas[:batch_t, t, :] = att
         # Element-wise max pooling
         output = self.maxpool(output).squeeze() # [batch, hidden_dim]
 
-        return output, alphas
+        return output[restore_id,:], alphas[restore_id,:,:]
