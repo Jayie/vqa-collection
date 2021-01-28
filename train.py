@@ -22,6 +22,21 @@ def compute_score(predict, target, device):
     return scores
 
 
+def instance_bce_with_logits(predict, target):
+    """ Loss function for VQA prediction"""
+    assert predict.dim() == 2
+    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+    loss *= target.size(1)
+    return loss
+
+
+def ce_for_language_model(predict, target):
+    """ Loss function for caption generation"""
+    assert predict.dim() == 2
+    loss = nn.functional.cross_entropy(predict, target)
+    return loss
+
+
 def train(  model, train_loader, val_loader, num_epoches, save_path, device, logger,
             checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0, model_type='base'
     ):
@@ -52,11 +67,11 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
         prev_loss = 0
         
         model.train()
-        model.set_return_loss(True)
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
             target = batch['a'].float().to(device)
-            predict, loss = model(batch)
+            predict = model(batch)
+            loss = instance_bce_with_logits(predict, target)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
@@ -105,12 +120,11 @@ def evaluate(model, dataloader, device, logger=None):
     
     model = model.to(device)
     model.eval()
-    model.set_return_loss(False)
     start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='eval')):
             target = batch['a'].float().to(device)
-            predict, _ = model(batch)
+            predict = model(batch)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
             

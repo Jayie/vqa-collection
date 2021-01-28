@@ -37,30 +37,6 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     return model
 
 
-def instance_bce_with_logits(predict, target):
-    """ Loss function for VQA prediction"""
-    assert predict.dim() == 2
-    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
-    loss *= target.size(1)
-    return loss
-
-
-def ce_for_language_model(predict, target):
-    """ Loss function for caption generation"""
-    assert predict.dim() == 2
-    loss = nn.functional.cross_entropy(predict, target)
-    return loss
-
-def ce_for_relevant_captions(vqa_loss, cap_loss, captions, v):
-    # TODO: loss_c_i for 'Generating Question Relevant Captions to Aid Visual Question Answering' (https://arxiv.org/abs/1906.00513)
-    vqa_loss.backward()
-    vqa_grad = v.grad().sum(dim=1) # SUM(d(vqa logit) / d(vqk)), k in range(36) [batch, v_dim]
-    cap_loss.backward()
-    
-
-    
-    return
-
 class BottomUpVQAModel(nn.Module):
     """
     This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
@@ -101,7 +77,6 @@ class BottomUpVQAModel(nn.Module):
 
         super().__init__()
         self.device = device
-        self.return_loss = True
 
         # Word embedding for question
         self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
@@ -134,9 +109,6 @@ class BottomUpVQAModel(nn.Module):
             out_dim=ans_dim,
             layer=cls_layer, dropout=dropout
         )
-
-    def set_return_loss(self, return_loss=True):
-        self.return_loss = return_loss
 
     def input_embedding(self, v, q):
         # Embed words and take the last output of RNN layer as the question embedding
@@ -176,12 +148,7 @@ class BottomUpVQAModel(nn.Module):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        target = batch['a'].float().to(self.device)
         predict, v = self.forward_vqa(v, q)
-
-        if self.return_loss:
-            loss = instance_bce_with_logits(predict, target)
-            return predict, loss
         return predict
 
 
@@ -270,11 +237,11 @@ class VQAEModel(NewBottomUpVQAModel):
         )
 
     def forward_cap(self, v, c, cap_len):
-        predict, target, decode_len, _, _, _ = self.generator(v, c, cap_len)
+        predict, target, decode_len, batches, _, _ = self.generator(v, c, cap_len)
         # Remove time steps that we didn't decode at (i.e. are <pad>)
         predict = pack_padded_sequence(predict, decode_len, batch_first=True).data # [num_non_pad_tokens, vocab_dim]
         target = pack_padded_sequence(target, decode_len, batch_first=True).data # [num_non_pad_tokens, 1]
-        return predict, target
+        return predict, target, batches
 
     def forward(self, batch):
         """
@@ -286,17 +253,12 @@ class VQAEModel(NewBottomUpVQAModel):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        target = batch['a'].float().to(self.device)
         c = batch['c'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
         
         vqa_predict, v = self.forward_vqa(v, q)
-        cap_predict, c = self.forward_cap(v, c, cap_len)
-        if self.return_loss:
-            loss = instance_bce_with_logits(vqa_predict, target) # VQA loss
-            loss += ce_for_language_model(cap_predict, c) # Caption loss
-            return vqa_predict, cap_predict, loss
-        return vqa_predict, cap_predict
+        cap_predict, c, batches = self.forward_cap(v, c, cap_len)
+        return (vqa_predict, (cap_predict, batches))
 
 
 
@@ -317,7 +279,8 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  device: str,
                  cls_layer: int = 2,
                  dropout: float = 0.5,
-                 neg_slope: float = 0.01
+                 neg_slope: float = 0.01,
+                 num_captions: int = 5
     ):
         """Input:
             For question embedding:
@@ -338,6 +301,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                 dropout: dropout (default = 0.5)
                 neg_slope: negative slope for Leaky ReLU (default = 0.01)
         """
+        self.num_captions = num_captions
 
         ##########################################################################################
         # VQA Module
@@ -388,11 +352,11 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         )
     
     def forward_cap(self, v, c, cap_len):
-        predict, target, decode_len, _, _, _ = self.generator(v, c, cap_len)
+        predict, target, decode_len, batches, _, _ = self.generator(v, c, cap_len)
         # Remove time steps that we didn't decode at (i.e. are <pad>)
         predict = pack_padded_sequence(predict, decode_len, batch_first=True).data # [num_non_pad_tokens, vocab_dim]
         target = pack_padded_sequence(target, decode_len, batch_first=True).data # [num_non_pad_tokens, 1]
-        return predict, target
+        return predict, target, batches
 
     def forward_vqa(self, v, q, c, cap_len):
         """
@@ -436,20 +400,11 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        target = batch['a'].float().to(self.device)
         c = batch['c'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
-        
-
         vqa_predict, v = self.forward_vqa(v, q, c, cap_len)
-        cap_predict, c = self.forward_cap(v, c, cap_len)
-        if self.return_loss:
-            loss = instance_bce_with_logits(vqa_predict, target)
-            # TODO:
-            # loss += caption loss
-            return vqa_predict, cap_predict, loss
-        return vqa_predict, cap_predict
-
+        cap_predict, c, batches = self.forward_cap(v, c, cap_len)
+        return (vqa_predict, (cap_predict, batches))
 
 
 class CaptionDecoder(nn.Module):

@@ -50,7 +50,7 @@ def preprocessing(
     save_q: bool = False,
     save_a: bool = False,
     save_c: bool = False,
-    select_c: str = '',
+    select_c: str = 'first',
     glove_path: str = '',
 ):
     """
@@ -123,7 +123,6 @@ def preprocessing(
         elif select_c == 'random':
             # random: randomly select from 1 caption from 5
             return captions[random.randrange(0, 5)]
-        raise ValueError("ValueError: the select strategy for select_c does not exist.")
 
 
     #########################################################################
@@ -257,4 +256,5 @@ if __name__ == '__main__':
         save_q=args.save_q,
         save_a=args.save_a,
         save_c=args.save_c,
+        select_c=args.select_c
     )
