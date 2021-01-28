@@ -60,6 +60,7 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
         model.set_return_loss(True)
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
+            target = batch['a'].float().to(device)
             predict, loss = model(batch)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
