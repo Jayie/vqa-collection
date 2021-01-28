@@ -11,7 +11,7 @@ from util.attention import ConcatAttention, MultiplyAttention
 
 def set_model(args: dict, ntoken: int, ans_dim: int):
     """Setup the model according to the model type."""
-    model_type = args.model_type
+    model_type = args.model
     models = {
         # bottom-up VQA
         'base': BottomUpVQAModel(
