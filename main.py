@@ -71,18 +71,7 @@ def main():
             f.write(f'{key}: {value}\n')
 
     # setup model
-    model = set_model(args.model)(
-        ntoken=len(vocab_list),
-        embed_dim=args.embed_dim,
-        hidden_dim=args.hidden_dim,
-        v_dim=args.v_dim,
-        att_fc_dim=args.att_fc_dim,
-        ans_dim=len(ans_list),
-        rnn_layer=args.rnn_layer,
-        cls_layer=args.cls_layer,
-        dropout=args.dropout,
-        device=args.device,
-    )
+    model = set_model(args, len(vocab_list), len(ans_list))
     print('model ready.')
 
     if args.mode == 'train':

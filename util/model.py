@@ -70,7 +70,7 @@ def set_model(model_type: str, args: dict, ntoken: int, ans_dim: int):
     keys = '\"/\"'.join(models.keys())
     msg = f'model_type can only be \"{keys}\", but get \"{model_type}\".'
     assert model_type in models.keys(), msg
-    return models[model_type]
+    return models[args.model_type]
 
 
 def use_pretrained_embedding(model, vocab_path: str, device: str):
