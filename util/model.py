@@ -9,7 +9,7 @@ from torch.nn.utils.weight_norm import weight_norm
 from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from util.attention import ConcatAttention, MultiplyAttention
 
-def set_model(model_type: str, args: dict, ntoken: int, ans_dim: int):
+def set_model(args: dict, ntoken: int, ans_dim: int):
     """Setup the model according to the model type."""
     models = {
         # bottom-up VQA
