@@ -30,8 +30,8 @@ def parse_args():
     parser.add_argument('--save_q', type=bool, default=False)
     parser.add_argument('--save_a', type=bool, default=False)
     parser.add_argument('--save_c', type=bool, default=False)
-    parser.add_argument('--select_c', type=str, default='')
-    parser.add_argument('--vocab_path', type=str, default='')
+    parser.add_argument('--select_c', type=str, default='first')
+    parser.add_argument('--glove_path', type=str, default='')
     
     args = parser.parse_args()    
 
@@ -47,7 +47,6 @@ def preprocessing(
     save_path: str = 'annot',
     c_len: int = 20,
     q_len: int = 10,
-    answer_type: str = '',
     save_q: bool = False,
     save_a: bool = False,
     save_c: bool = False,
@@ -65,9 +64,8 @@ def preprocessing(
     save_path: path for saving preprocessed files (default = annot)
     c_len: the maximal length of captions (default = 20)
     q_len: the maximal length of questions (default = 10)
-    answer_type: only save datas with answer type 'yes/no' , 'number', or 'other' (default = '' means save all kinds of answer type)
     save_q/save_a/save_c: save questions/answers/captions or not
-    select_c: the strategy for selecting captions (default = '')
+    select_c: the strategy for selecting captions (default = 'first')
     glove_path: path for pre-trained GloVe word embeddings (only needed when select_c == 'vqa-e')
     """
     print('q:', save_q)
@@ -75,7 +73,8 @@ def preprocessing(
     print('c:', save_c)
 
     # Check if save_path exist
-    save_path = os.path.join(save_path, answer_type)
+    save_path = os.path.join(save_path, select_c)
+    print(save_path)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
@@ -114,41 +113,16 @@ def preprocessing(
                                 'data_type': data_type,
                                 'data': data}))
 
-    def select_strategy(select_c, captions, glove_path='', q_data=None, a_data=None):
+    def select_strategy(captions, select_c='first'):
         """
         the strategies to select a caption for each image.
         """
-        if select_c == '':
+        if select_c == 'first':
             # Default: select the first caption
             return captions[0]
         elif select_c == 'random':
             # random: randomly select from 1 caption from 5
             return captions[random.randrange(0, 5)]
-        elif select_c == 'vqa-e':
-            def sentence_similarity(x, y):
-                glove = PretrainedWordEmbedding(glove_path, device='cpu')
-                def word_similarity(x, y):
-                    return 0.5 * (1 + nn.functional.cosine_similarity(x, y, dim=glove.vocab_dim).item())
-                # Get Glove embeddings
-                x = glove(x.unsqueeze(0)).squeeze() # [x_len, vocab_dim]
-                y = glove(y.unsqueeze(0)).squeeze() # [q_len, vocab_dim]
-
-                output = 0
-                for i in y.size(0): # For each word in y, find the most similar word in x
-                    temp = 0
-                    for j in x.size(0):
-                        temp = max(temp, word_similarity(y[i], x[j]))
-                    output += temp
-                return output / x.size(0) # Sum up the maximal similarity of all words in y as the similarity score between sentence x and y
-            max_score = 0
-            for i in range(5):
-                # Find the caption that is most relevant to the question-answer pair
-                score = 0.5 * (sentence_similarity(q_data, captions[i]) + sentence_similarity(a_data, captions[i]))
-                if score > max_score:
-                    output = i
-                    max_score = score
-
-            return captions[i]
         raise ValueError("ValueError: the select strategy for select_c does not exist.")
 
 
@@ -159,16 +133,12 @@ def preprocessing(
         a_json = json.load(f)['annotations']
         print('Load answer json file.')
     
-    q_id = []
     a_data = []
+    ans_type = {'yes/no': [], 'number': [], 'other': []}
     for i in tqdm(range(len(a_json)), desc='answer'):
-        # If only select certain answer type
-        if answer_type != '' and a_json[i]['answer_type'] != answer_type:
-            continue
+        ans_type[a_json[i]['answer_type']].append(i)
         
-        q_id.append(a_json[i]['question_id'])
-        
-        if save_a or select_c == 'vqa-e':
+        if save_a:
             image_id = a_json[i]['image_id']
             answers = []
             for a in a_json[i]['answers']:
@@ -180,11 +150,15 @@ def preprocessing(
 
     if save_a:
         # Save answer dataset
-        save_file(file_name=f'{save_path}/{dataset_type}_answers.json',
+        save_file(file_name=os.path.join(save_path,f'{dataset_type}_answers.json'),
                 desc='This is VQA v2.0 answers dataset.',
                 data_type=dataset_type, data=a_data
         )
         print('answer dataset saved.')
+
+        # Save IDs for different answer types
+        with open(os.path.join(save_path,f'{dataset_type}_answer_type.json'), 'w') as f:
+            f.write(json.dumps(ans_type))
 
     #########################################################################
     # Read VQA question dataset
@@ -196,12 +170,10 @@ def preprocessing(
     image_ids = []
     q_data = []
     for i in tqdm(range(len(q_json)), desc='question'):
-        if q_json[i]['question_id'] not in q_id:
-            continue
         image_id = q_json[i]['image_id']
         image_ids.append(image_id)
         
-        if save_q or select_c == 'vqa-e':
+        if save_q:
             words, tokens = get_tokens(q_json[i]['question'])
             tokens, _ = padding(tokens, q_len)
             q_data.append({
@@ -212,7 +184,7 @@ def preprocessing(
 
     # Save question dataset
     if save_q:
-        save_file(file_name=f'{save_path}/{dataset_type}_questions.json',
+        save_file(file_name=os.path.join(save_path,f'{dataset_type}_questions.json'),
                 desc='This is VQA v2.0 questions dataset.',
                 data_type=dataset_type, data=q_data
         )
@@ -234,17 +206,33 @@ def preprocessing(
     if save_c:
         c_data = []
         for i, image_id in enumerate(tqdm(image_ids, desc='caption')):
-            caption = select_strategy(select_c, captions[image_id], glove_path, q_data[i]['q'], c_data[i]['c'])
-            words, tokens = get_tokens(caption, is_cap=True)
-            tokens, cap_len = padding(tokens, c_len)
-            c_data.append({
-                'c_word': words,
-                'c': tokens,
-                'cap_len': cap_len
-            })
+            if select_c == 'all':
+                all_words = []
+                all_tokens = []
+                all_cap_len = []
+                for caption in captions[image_id]:
+                    words, tokens = get_tokens(caption, is_cap=True)
+                    tokens, cap_len = padding(tokens, c_len)
+                    all_words.append(words)
+                    all_tokens.append(tokens)
+                    all_cap_len.append(cap_len)
+                c_data.append({
+                    'c_word': all_words,
+                    'c': all_tokens,
+                    'cap_len': all_cap_len
+                })
+            else:
+                caption = select_strategy(captions[image_id], select_c=select_c)
+                words, tokens = get_tokens(caption, is_cap=True)
+                tokens, cap_len = padding(tokens, c_len)
+                c_data.append({
+                    'c_word': words,
+                    'c': tokens,
+                    'cap_len': cap_len
+                })
 
         # Save answer dataset
-        save_file(file_name=f'{save_path}/{dataset_type}_captions.json',
+        save_file(file_name=os.path.join(save_path,f'{dataset_type}_captions.json'),
                 desc='This is COCO Captions dataset.',
                 data_type=dataset_type, data=c_data
         )

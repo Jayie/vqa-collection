@@ -49,8 +49,10 @@ def ce_for_language_model(predict, target):
     """ Loss function for caption generation"""
     assert predict.dim() == 2
     loss = nn.functional.cross_entropy(predict, target)
-    loss *= target.size(1)
     return loss
+
+def ce_for_relevant_captions(vqa_predict, captions, target):
+    return
 
 class BottomUpVQAModel(nn.Module):
     """

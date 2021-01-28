@@ -6,11 +6,6 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-# Loss function for VQA
-def instance_bce_with_logits(predict, target):
-    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
-    loss *= target.size(1)
-    return loss
 
 # Compute score (according to the VQA evaluation metric)
 def compute_score(predict, target, device):
