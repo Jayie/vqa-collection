@@ -3,15 +3,14 @@ import numpy as np
 import torch
 import torch.optim
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.weight_norm import weight_norm
 
 from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from util.attention import ConcatAttention, MultiplyAttention
 
 def set_model(model_type: str):
-    """
-    Setup the model according to the model type.
-    """
+    """Setup the model according to the model type."""
     models = {
         # bottom-up VQA
         'base': BottomUpVQAModel,
@@ -29,9 +28,7 @@ def set_model(model_type: str):
 
 
 def use_pretrained_embedding(model, vocab_path: str, device: str):
-    """
-    Replace the embedding layer in the model with the pre-trained embedding layer.
-
+    """ Replace the embedding layer in the model with the pre-trained embedding layer.
     Input:
         vocab_path: path for loading pre-trained word vectors
         device: device
@@ -39,9 +36,19 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model
 
-# Loss function for VQA
+
 def instance_bce_with_logits(predict, target):
+    """ Loss function for VQA prediction"""
+    assert predict.dim() == 2
     loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+    loss *= target.size(1)
+    return loss
+
+
+def ce_for_language_model(predict, target):
+    """ Loss function for caption generation"""
+    assert predict.dim() == 2
+    loss = nn.functional.cross_entropy(predict, target)
     loss *= target.size(1)
     return loss
 
@@ -169,6 +176,7 @@ class BottomUpVQAModel(nn.Module):
         return predict
 
 
+
 class NewBottomUpVQAModel(BottomUpVQAModel):
     """
     This model is based on the winning entry of the 2017 VQA Challenge, but replaces the concat attention in the original design with the dot attention.
@@ -194,6 +202,7 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
         )
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
         
+
 
 class VQAEModel(NewBottomUpVQAModel):
     """
@@ -251,6 +260,13 @@ class VQAEModel(NewBottomUpVQAModel):
             dropout=dropout,
         )
 
+    def forward_cap(self, v, c, cap_len):
+        predict, target, decode_len, _, _, _ = self.generator(v, c, cap_len)
+        # Remove time steps that we didn't decode at (i.e. are <pad>)
+        predict = pack_padded_sequence(predict, decode_len, batch_first=True).data # [num_non_pad_tokens, vocab_dim]
+        target = pack_padded_sequence(target, decode_len, batch_first=True).data # [num_non_pad_tokens, 1]
+        return predict, target
+
     def forward(self, batch):
         """
         Input:
@@ -262,13 +278,18 @@ class VQAEModel(NewBottomUpVQAModel):
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
         target = batch['a'].float().to(self.device)
-        predict, v = self.forward_vqa(v, q)
+        c = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        
+        vqa_predict, v = self.forward_vqa(v, q)
+        cap_predict, c = self.forward_cap(v, c, cap_len)
         if self.return_loss:
-            loss = instance_bce_with_logits(predict, target)
-            # TODO:
-            # loss += caption loss
-            return predict, loss
-        return predict
+            loss = instance_bce_with_logits(vqa_predict, target) # VQA loss
+            loss += ce_for_language_model(cap_predict, c) # Caption loss
+            return vqa_predict, cap_predict, loss
+        return vqa_predict, cap_predict
+
+
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
     """
@@ -310,17 +331,15 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         """
 
         ##########################################################################################
-        # Image and Question Embedding
+        # VQA Module
         ##########################################################################################
+        # Image and question embedding
         super().__init__(
             ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
             device=device, cls_layer=cls_layer, dropout=dropout
         )
 
-        ##########################################################################################
-        # Caption Embedding
-        ##########################################################################################
         # Caption embedding module
         self.caption_embedding = CaptionEmbedding(
             v_dim=hidden_dim,
@@ -331,18 +350,14 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             device=device,
             dropout=dropout
         )
-
         # Attention layer for image features based on caption embedding
         self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
 
-        ##########################################################################################
-        # VQA Module
-        ##########################################################################################
+        # VQA cls layer
         # For caption-attended visual features
         self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         self.vq_net = LReLUNet(v_dim, hidden_dim, neg_slope)
         self.joint_c_vq = LReLUNet(hidden_dim, hidden_dim, neg_slope)
-
         # For incorporating the information from the captions
         self.vqc_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         self.cls_layer = nn.Sequential(
@@ -350,22 +365,26 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             nn.Sigmoid()
         )
 
-    def forward_cap(self, v, q, c, cap_len):
-        """
-        Forward function for caption generation.
-        
-        Input:
-            v: question-attended imaghe features [batch, v_len, v_dim]
-            c: [batch, c_len]
-            q: [batch, q_len]
-        Output:[batch, c_len, vocab_dim]
-        """
         ##########################################################################################
-        # TODO: Image captioning module
-        #
+        # Caption Generator
         ##########################################################################################
-        return
+        self.generator = CaptionDecoder(
+            ntoken=ntoken,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            v_dim=v_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout,
+        )
     
+    def forward_cap(self, v, c, cap_len):
+        predict, target, decode_len, _, _, _ = self.generator(v, c, cap_len)
+        # Remove time steps that we didn't decode at (i.e. are <pad>)
+        predict = pack_padded_sequence(predict, decode_len, batch_first=True).data # [num_non_pad_tokens, vocab_dim]
+        target = pack_padded_sequence(target, decode_len, batch_first=True).data # [num_non_pad_tokens, 1]
+        return predict, target
+
     def forward_vqa(self, v, q, c, cap_len):
         """
         Forward function for VQA prediction.
@@ -377,31 +396,24 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             cap_len: ground truth caption length [batch, 1]
         Output:[batch, num_answer_candidate]
         """
-        ##########################################################################################
-        # Image and Question Embedding
-        ##########################################################################################
+        # Image and question embedding
         # Embed question tokens and take the last output of RNN layer as the question embedding
         visual_feature, q = self.input_embedding(v, q)
         vq = visual_feature.sum(1) # [batch, hidden_dim]
 
-        ##########################################################################################
-        # Caption Embedding
-        ##########################################################################################
+        # Caption embedding
         # Embed caption tokens and compute the caption embedding
         c = self.embedding(c) # [batch, c_len, embed_dim]
         vq = self.v_net(vq) # [batch, hidden_dim]
         c, _ = self.caption_embedding(vq, self.q_net(q), c, cap_len) # [batch, hidden_dim]
 
-        ##########################################################################################
-        # VQA Module
-        ##########################################################################################
+        # VQA cls layer
         # Produce caption-attended features
         vq = self.vq_net(visual_feature) # [batch, num_objs, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
         joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, vq.size(1), 1) * vq)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
         vq = (joint * vq).sum(1) # [batch, hidden_dim]
-
         # To better incorporate the information from the captions into the VQA process, add the caption feature ot the attended image features,
         # and then element-wise multiply by the question features.
         vq = self.vqc_net(vq) # [batch, hidden_dim]
@@ -414,18 +426,21 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
     def forward(self, batch):
         # Setup inputs
         v = batch['img'].to(self.device)
-        c = batch['c'].to(self.device)
         q = batch['q'].to(self.device)
-        cap_len = batch['cap_len'].to(self.device)
         target = batch['a'].float().to(self.device)
+        c = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
         
-        predict, v = self.forward_vqa(v, q, c, cap_len)
+
+        vqa_predict, v = self.forward_vqa(v, q, c, cap_len)
+        cap_predict, c = self.forward_cap(v, c, cap_len)
         if self.return_loss:
-            loss = instance_bce_with_logits(predict, target)
+            loss = instance_bce_with_logits(vqa_predict, target)
             # TODO:
             # loss += caption loss
-            return predict, loss
-        return predict
+            return vqa_predict, cap_predict, loss
+        return vqa_predict, cap_predict
+
 
 
 class CaptionDecoder(nn.Module):
@@ -496,6 +511,13 @@ class CaptionDecoder(nn.Module):
             v: visual features [batch, num_objs, v_dim]
             caption: ground truth captions [batch, max_len]
             cap_len: caption lengths for each batch [batch, 1]
+        Output:
+            predict (Tensor): the decoded captions [batch, max_len, vocab_dim]
+            target (Tensor): the sorted ground truth caption tokens [batch, max_len, 1]
+            batches (list): the lenght of each batch [batch]
+            restore_id (list): the batch IDs to restore the order [batch]
+            decode_len (list): the lengths of decoded captions [batch]
+            alphas (Tensor): the attention map [batch, num_objs]
         """
         # Flatten image features
         v_mean = v.mean(1).to(self.device) # [batch, v_dim]
@@ -504,12 +526,12 @@ class CaptionDecoder(nn.Module):
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
-        caption = caption[sort_id]
+        sort_caption = caption[sort_id]
         v = v[sort_id]
         v_mean = v_mean[sort_id]
 
         # Encode captions
-        caption = self.embedding(caption) # [batch, max_len, embed_dim]
+        caption = self.embedding(sort_caption) # [batch, max_len, embed_dim]
 
         # Initialize RNN states
         batch = caption.size(0)
@@ -567,5 +589,4 @@ class CaptionDecoder(nn.Module):
         # Softmax
         output = self.softmax(output)
 
-        # Return: output = generated captions, alphas = attention map
-        return output[restore_id,:,:], alphas[restore_id,:,:]
+        return output[restore_id,:,:], sort_caption, decode_len, batches, restore_id, alphas[restore_id,:,:]

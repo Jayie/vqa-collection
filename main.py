@@ -148,7 +148,7 @@ def main():
                     'dropout': args.dropout,
                 },
                 metric_dict={
-                    'hparam/score': score
+                    'hparam/score': 100 * score
                 }
             )
 
