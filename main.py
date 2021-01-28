@@ -3,6 +3,7 @@ import argparse
 import json
 import time
 import traceback
+import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import DataLoader
@@ -67,10 +68,10 @@ def main():
     # answer candidate list
     ans_list = get_vocab_list(args.ans_path)
     # save the settings
+    logger.write('parameters:')
     save_path = os.path.join('checkpoint', args.comment)
-    with open(os.path.join(save_path, 'param.txt'), 'w') as f:
-        for key, value in args.__dict__.items():
-            f.write(f'{key}: {value}\n')
+    for key, value in args.__dict__.items():
+        logger.write(f'{key}: {value}\n')
 
     # setup model
     model = set_model(args.model)(
@@ -88,6 +89,7 @@ def main():
                 )
     print('model ready.')
 
+    logger.write('\nmode:', args.mode)
     if args.mode == 'train':
         # setup training and validation datasets
         print('loading train dataset', end='... ')
@@ -157,8 +159,15 @@ def main():
 
     elif args.mode == 'sample_vqa':
         val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
-        val_loader = DataLoader(val_data, batch_size=1, shuffle=True)
-        sample_vqa(model, val_loader, ans_list, args.device)
+        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=True)
+        output = sample_vqa(model, val_loader, ans_list, args.device, logger=logger)
+        
+        with open(os.path.join(save_path, 'count.json'), 'w') as f:
+            f.write(json.dumps(output))
+
+        plt.barh(list(output.keys()), output.values())
+        plt.savefig(os.path.join(save_path, 'count.png'))
+        plt.show()
 
 
 if __name__ == '__main__':

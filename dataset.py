@@ -66,6 +66,7 @@ class VQADataset(Dataset):
             
     def __getitem__(self, index):
         return {
+            'id': index,
             'img': np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))['x'],
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
@@ -94,6 +95,7 @@ class VQACaptionDataset(VQADataset):
             
     def __getitem__(self, index):
         return {
+            'id': index,
             'img': np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))['x'],
             'q': np.array(self.questions[index]['q']),
             'c': np.array(self.captions[index]['c']),
