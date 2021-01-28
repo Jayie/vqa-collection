@@ -129,7 +129,7 @@ def preprocessing(
     #########################################################################
     # Read VQA annotation dataset
     # Keep the questions of certain answer type
-    with open(f'{vqa_path}/v2_mscoco_{dataset_type}_annotations.json') as f:
+    with open(os.path.join(vqa_path, f'v2_mscoco_{dataset_type}_annotations.json')) as f:
         a_json = json.load(f)['annotations']
         print('Load answer json file.')
     
@@ -163,7 +163,7 @@ def preprocessing(
     #########################################################################
     # Read VQA question dataset
     # Save the image IDs in order to load corresponding captions
-    with open(f'{vqa_path}/v2_OpenEnded_mscoco_{dataset_type}_questions.json') as f:
+    with open(os.path.join(vqa_path, f'v2_OpenEnded_mscoco_{dataset_type}_questions.json')) as f:
         q_json = json.load(f)['questions']
         print('Load question json file.')
 
@@ -192,7 +192,7 @@ def preprocessing(
 
     #########################################################################
     # Read COCO Captions dataset
-    with open(f'{coco_path}/captions_{dataset_type}.json') as f:
+    with open(os.path.join(coco_path, f'captions_{dataset_type}.json')) as f:
         c_json = json.load(f)['annotations']
         print('Load caption json file.')
     
