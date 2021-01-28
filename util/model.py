@@ -168,7 +168,8 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
                  ans_dim: int,
                  device: str,
                  cls_layer=2,
-                 dropout=0.5
+                 dropout=0.5,
+                 c_len=None,
     ):
         # Replace the attention module
         # The forward process is the same

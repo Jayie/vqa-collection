@@ -68,10 +68,10 @@ def main():
     # answer candidate list
     ans_list = get_vocab_list(args.ans_path)
     # save the settings
-    logger.write('parameters:')
     save_path = os.path.join('checkpoint', args.comment)
-    for key, value in args.__dict__.items():
-        logger.write(f'{key}: {value}\n')
+    with open(os.path.join(save_path, 'param.txt'), 'w') as f:
+        for key, value in args.__dict__.items():
+            f.write(f'{key}: {value}\n')
 
     # setup model
     model = set_model(args.model)(
