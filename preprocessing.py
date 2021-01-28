@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import argparse
 
 import nltk
@@ -10,7 +11,22 @@ from nltk.stem import WordNetLemmatizer
 
 from util.utils import get_vocab_list
 
-# Data preprocessing
+
+def select_strategy(select_c, captions):
+    """
+    the strategies to select a caption for each image.
+    """
+    if select_c == '':
+        # Default: select the first caption
+        return captions[0]
+    elif select_c == 'random':
+        # random: randomly select from 1 caption from 5
+        return captions[random.randrange(0, 5)]
+    elif select_c == 'vqa-e':
+        return
+    raise ValueError("ValueError: the select strategy for select_c does not exist.")
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     
@@ -23,6 +39,10 @@ def parse_args():
     parser.add_argument('--save_path', type=str, default='../annot')
     parser.add_argument('--c_len', type=int, default=20)
     parser.add_argument('--q_len', type=int, default=10)
+    parser.add_argument('--save_q', type=bool, default=False)
+    parser.add_argument('--save_a', type=bool, default=False)
+    parser.add_argument('--save_c', type=bool, default=False)
+    parser.add_argument('--select_c', type=str, default='')
     
     args = parser.parse_args()    
 
@@ -38,7 +58,11 @@ def preprocessing(
     save_path: str = 'annot',
     c_len: int = 20,
     q_len: int = 10,
-    answer_type: str = ''
+    answer_type: str = '',
+    save_q: bool = False,
+    save_a: bool = False,
+    save_c: bool = False,
+    select_c: str = ''
 ):
     """
     Dataset preprocessing.
@@ -52,7 +76,13 @@ def preprocessing(
     c_len: the maximal length of captions (default = 20)
     q_len: the maximal length of questions (default = 10)
     answer_type: only save datas with answer type 'yes/no' , 'number', or 'other' (default = '' means save all kinds of answer type)
+    save_q/save_a/save_c: save questions/answers/captions or not
+    select_c: the strategy for selecting captions (default = '')
     """
+    print('q:', save_q)
+    print('a:', save_a)
+    print('c:', save_c)
+
     # Check if save_path exist
     save_path = os.path.join(save_path, answer_type)
     if not os.path.exists(save_path):
@@ -93,8 +123,10 @@ def preprocessing(
                                 'data_type': data_type,
                                 'data': data}))
 
+
     #########################################################################
     # Read VQA annotation dataset
+    # Keep the questions of certain answer type
     with open(f'{vqa_path}/v2_mscoco_{dataset_type}_annotations.json') as f:
         a_json = json.load(f)['annotations']
         print('Load answer json file.')
@@ -107,25 +139,28 @@ def preprocessing(
             continue
         
         q_id.append(a_json[i]['question_id'])
+        
+        if save_a:
+            image_id = a_json[i]['image_id']
+            answers = []
+            for a in a_json[i]['answers']:
+                answers.append(a['answer'])
+            ans_dict = {}
+            for a in set(answers):
+                if a in ans_list: ans_dict[ans_list.index(a)] = answers.count(a)
+            data.append(ans_dict)
 
-        image_id = a_json[i]['image_id']
-        answers = []
-        for a in a_json[i]['answers']:
-            answers.append(a['answer'])
-        ans_dict = {}
-        for a in set(answers):
-            if a in ans_list: ans_dict[ans_list.index(a)] = answers.count(a)
-        data.append(ans_dict)
-
-    # Save answer dataset
-    save_file(file_name=f'{save_path}/{dataset_type}_answers.json',
-              desc='This is VQA v2.0 answers dataset.',
-              data_type=dataset_type, data=data
-    )
-    print('answer dataset saved.')
+    if save_a:
+        # Save answer dataset
+        save_file(file_name=f'{save_path}/{dataset_type}_answers.json',
+                desc='This is VQA v2.0 answers dataset.',
+                data_type=dataset_type, data=data
+        )
+        print('answer dataset saved.')
 
     #########################################################################
     # Read VQA question dataset
+    # Save the image IDs in order to load corresponding captions
     with open(f'{vqa_path}/v2_OpenEnded_mscoco_{dataset_type}_questions.json') as f:
         q_json = json.load(f)['questions']
         print('Load question json file.')
@@ -135,23 +170,25 @@ def preprocessing(
     for i in tqdm(range(len(q_json)), desc='question'):
         if q_json[i]['question_id'] not in q_id:
             continue
-        
         image_id = q_json[i]['image_id']
         image_ids.append(image_id)
-        words, tokens = get_tokens(q_json[i]['question'])
-        tokens, _ = padding(tokens, q_len)
-        data.append({
-            'img_file': f'COCO_{dataset_type}_{str(image_id).zfill(12)}.npz',
-            'q_word': words,
-            'q': tokens,
-        })
+        
+        if save_q:
+            words, tokens = get_tokens(q_json[i]['question'])
+            tokens, _ = padding(tokens, q_len)
+            data.append({
+                'img_file': f'COCO_{dataset_type}_{str(image_id).zfill(12)}.npz',
+                'q_word': words,
+                'q': tokens,
+            })
 
     # Save question dataset
-    save_file(file_name=f'{save_path}/{dataset_type}_questions.json',
-              desc='This is VQA v2.0 questions dataset.',
-              data_type=dataset_type, data=data
-    )
-    print('question dataset saved.')
+    if save_q:
+        save_file(file_name=f'{save_path}/{dataset_type}_questions.json',
+                desc='This is VQA v2.0 questions dataset.',
+                data_type=dataset_type, data=data
+        )
+        print('question dataset saved.')
 
     #########################################################################
     # Read COCO Captions dataset
@@ -166,25 +203,34 @@ def preprocessing(
             captions[c['image_id']] = []
         captions[c['image_id']].append(c['caption'])
 
-    data = []    
-    for image_id in tqdm(image_ids, desc='caption'):
-        all_words = []
-        all_tokens = []
-        all_cap_lens = []
-        for i, caption in enumerate(captions[image_id]):
+    if save_c:
+        data = []
+        for image_id in tqdm(image_ids, desc='caption'):
+            # all_words = []
+            # all_tokens = []
+            # all_cap_lens = []
+            # for i, caption in enumerate(captions[image_id]):
+            #     words, tokens = get_tokens(caption, is_cap=True)
+            #     tokens, cap_len = padding(tokens, c_len)
+            #     all_words.append(words)
+            #     all_tokens.append(tokens)
+            #     all_cap_lens.append(cap_len)
+            # data.append({'c_word': all_words, 'c': all_tokens, 'cap_len': all_cap_lens})
+            caption = select_strategy(select_c, captions[image_id])
             words, tokens = get_tokens(caption, is_cap=True)
             tokens, cap_len = padding(tokens, c_len)
-            all_words.append(words)
-            all_tokens.append(tokens)
-            all_cap_lens.append(cap_len)
-        data.append({'c_word': all_words, 'c': all_tokens, 'cap_len': all_cap_lens})
+            data.append({
+                'c_word': words,
+                'c': tokens,
+                'cap_len': cap_len
+            })
 
-    # Save answer dataset
-    save_file(file_name=f'{save_path}/{dataset_type}_captions.json',
-              desc='This is COCO Captions dataset.',
-              data_type=dataset_type, data=data
-    )
-    print('caption dataset saved.')
+        # Save answer dataset
+        save_file(file_name=f'{save_path}/{dataset_type}_captions.json',
+                desc='This is COCO Captions dataset.',
+                data_type=dataset_type, data=data
+        )
+        print('caption dataset saved.')
 
     return
 
@@ -201,5 +247,8 @@ if __name__ == '__main__':
         dataset_type=args.dataset_type,
         save_path=args.save_path,
         c_len=args.c_len,
-        q_len=args.q_len
+        q_len=args.q_len,
+        save_q=args.save_q,
+        save_a=args.save_a,
+        save_c=args.save_c,
     )

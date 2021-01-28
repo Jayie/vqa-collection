@@ -59,7 +59,7 @@ class VQADataset(Dataset):
 
 
 class VQACaptionDataset(VQADataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, load_all_captions=False):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list):
         t = time.time()
         print('loading dataset...', end=' ')
         self.questions = self.load_dataset(load_dataset, 'questions')
@@ -69,7 +69,6 @@ class VQACaptionDataset(VQADataset):
         self.vocab_list = vocab_list
         self.ans_list = ans_list
         self.feature_path = feature_path
-        self.load_all_captions = load_all_captions
         t = time.time() - t
         print(f'dataset ready ({t:.2f} sec).')
     
@@ -77,13 +76,10 @@ class VQACaptionDataset(VQADataset):
         return len(self.questions)
             
     def __getitem__(self, index):
-        if not self.load_all_captions:
-            return {
-                'img': np.load(self.feature_path + '/' + self.questions[index]['img_file'])['x'],
-                'q': np.array(self.questions[index]['q']),
-                'c': np.array(self.captions[index]['c'][0]),
-                'cap_len': self.captions[index]['cap_len'][0],
-                'a': np.array(self.load_answer(index)),
-            }
-
-        # TODO: Select the most question-relevant captions
+        return {
+            'img': np.load(self.feature_path + '/' + self.questions[index]['img_file'])['x'],
+            'q': np.array(self.questions[index]['q']),
+            'c': np.array(self.captions[index]['c']),
+            'cap_len': self.captions[index]['cap_len'],
+            'a': np.array(self.load_answer(index)),
+        }
