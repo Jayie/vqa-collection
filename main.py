@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from dataset import set_dataset
-from util.model import set_model
 from train import train, evaluate
+from sample import sample_vqa
+from util.model import set_model
 from util.utils import *
 
 def parse_args():
@@ -153,6 +154,11 @@ def main():
                     'hparam/score': score
                 }
             )
+
+    elif args.mode == 'sample_vqa':
+        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
+        val_loader = DataLoader(val_data, batch_size=1, shuffle=True)
+        sample_vqa(model, val_loader, ans_list, args.device)
 
 
 if __name__ == '__main__':
