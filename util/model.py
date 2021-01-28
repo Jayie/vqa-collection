@@ -39,6 +39,11 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model
 
+# Loss function for VQA
+def instance_bce_with_logits(predict, target):
+    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+    loss *= target.size(1)
+    return loss
 
 class BottomUpVQAModel(nn.Module):
     """
@@ -80,6 +85,7 @@ class BottomUpVQAModel(nn.Module):
 
         super().__init__()
         self.device = device
+        self.return_loss = True
 
         # Word embedding for question
         self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
@@ -112,6 +118,9 @@ class BottomUpVQAModel(nn.Module):
             out_dim=ans_dim,
             layer=cls_layer, dropout=dropout
         )
+
+    def set_return_loss(self, return_loss=True):
+        self.return_loss = return_loss
 
     def input_embedding(self, v, q):
         # Embed words and take the last output of RNN layer as the question embedding
@@ -151,7 +160,13 @@ class BottomUpVQAModel(nn.Module):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        return self.forward_vqa(v, q)
+        target = batch['a'].float().to(self.device)
+        predict, v = self.forward_vqa(v, q)
+
+        if self.return_loss:
+            loss = instance_bce_with_logits(predict, target)
+            return predict, loss
+        return predict
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
@@ -236,6 +251,24 @@ class VQAEModel(NewBottomUpVQAModel):
             dropout=dropout,
         )
 
+    def forward(self, batch):
+        """
+        Input:
+            v: [batch, v_len, v_dim]
+            q: [batch, q_len]
+        Output:[batch, num_answer_candidate]
+        """
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        target = batch['a'].float().to(self.device)
+        predict, v = self.forward_vqa(v, q)
+        if self.return_loss:
+            loss = instance_bce_with_logits(predict, target)
+            # TODO:
+            # loss += caption loss
+            return predict, loss
+        return predict
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
     """
@@ -384,9 +417,15 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         c = batch['c'].to(self.device)
         q = batch['q'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
+        target = batch['a'].float().to(self.device)
         
-        joint, visual_feature = self.forward_vqa(v, q, c, cap_len)
-        return joint, visual_feature
+        predict, v = self.forward_vqa(v, q, c, cap_len)
+        if self.return_loss:
+            loss = instance_bce_with_logits(predict, target)
+            # TODO:
+            # loss += caption loss
+            return predict, loss
+        return predict
 
 
 class CaptionDecoder(nn.Module):

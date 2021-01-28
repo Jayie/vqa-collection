@@ -57,26 +57,10 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
         prev_loss = 0
         
         model.train()
+        model.set_return_loss(True)
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
-
-            target = batch['a'].float().to(device)
-            predict, v = model(batch)
-            loss = instance_bce_with_logits(predict, target)
-            
-            # Get additional inputs, and then produce predicted results and loss depending on which type of the model is.
-            if model_type == 'vqa-e':
-                ############################
-                # TODO: loss += Lvqe
-                ############################
-                pass
-
-            elif model_type == 'q-caption':
-                ############################
-                # TODO: loss += Lc
-                ############################
-                pass
-
+            predict, loss = model(batch)
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
@@ -125,6 +109,7 @@ def evaluate(model, dataloader, device, logger=None):
     
     model = model.to(device)
     model.eval()
+    model.set_return_loss(False)
     start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='eval')):
