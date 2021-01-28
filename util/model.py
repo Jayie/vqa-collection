@@ -9,17 +9,63 @@ from torch.nn.utils.weight_norm import weight_norm
 from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from util.attention import ConcatAttention, MultiplyAttention
 
-def set_model(model_type: str):
+def set_model(model_type: str, args: dict, ntoken: int, ans_dim: int):
     """Setup the model according to the model type."""
     models = {
         # bottom-up VQA
-        'base': BottomUpVQAModel,
+        'base': BottomUpVQAModel(
+                    ntoken=ntoken,
+                    embed_dim=args.embed_dim,
+                    hidden_dim=args.hidden_dim,
+                    v_dim=args.v_dim,
+                    att_fc_dim=args.att_fc_dim,
+                    ans_dim=ans_dim,
+                    rnn_layer=args.rnn_layer,
+                    cls_layer=args.cls_layer,
+                    dropout=args.dropout,
+                    device=args.device,
+                ),
         # bottom-up VQA with dot attention
-        'new': NewBottomUpVQAModel,
+        'new': NewBottomUpVQAModel(
+                    ntoken=ntoken,
+                    embed_dim=args.embed_dim,
+                    hidden_dim=args.hidden_dim,
+                    v_dim=args.v_dim,
+                    att_fc_dim=args.att_fc_dim,
+                    ans_dim=ans_dim,
+                    rnn_layer=args.rnn_layer,
+                    cls_layer=args.cls_layer,
+                    dropout=args.dropout,
+                    device=args.device,
+                ),
         # VQA-E
-        'vqa-e': VQAEModel,
+        'vqa-e': VQAEModel(
+                    ntoken=ntoken,
+                    embed_dim=args.embed_dim,
+                    hidden_dim=args.hidden_dim,
+                    v_dim=args.v_dim,
+                    att_fc_dim=args.att_fc_dim,
+                    ans_dim=ans_dim,
+                    c_len=args.c_len,
+                    rnn_layer=args.rnn_layer,
+                    cls_layer=args.cls_layer,
+                    dropout=args.dropout,
+                    device=args.device,
+                ),
         # VQA with Generating Question Relevant Captions
-        'q-caption': QuestionRelevantCaptionsVQAModel,
+        'q-caption': QuestionRelevantCaptionsVQAModel(
+                    ntoken=ntoken,
+                    embed_dim=args.embed_dim,
+                    hidden_dim=args.hidden_dim,
+                    v_dim=args.v_dim,
+                    att_fc_dim=args.att_fc_dim,
+                    ans_dim=ans_dim,
+                    c_len=args.c_len,
+                    rnn_layer=args.rnn_layer,
+                    cls_layer=args.cls_layer,
+                    dropout=args.dropout,
+                    device=args.device,
+                ),
     }
     keys = '\"/\"'.join(models.keys())
     msg = f'model_type can only be \"{keys}\", but get \"{model_type}\".'
