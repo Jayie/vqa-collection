@@ -206,16 +206,6 @@ def preprocessing(
     if save_c:
         data = []
         for image_id in tqdm(image_ids, desc='caption'):
-            # all_words = []
-            # all_tokens = []
-            # all_cap_lens = []
-            # for i, caption in enumerate(captions[image_id]):
-            #     words, tokens = get_tokens(caption, is_cap=True)
-            #     tokens, cap_len = padding(tokens, c_len)
-            #     all_words.append(words)
-            #     all_tokens.append(tokens)
-            #     all_cap_lens.append(cap_len)
-            # data.append({'c_word': all_words, 'c': all_tokens, 'cap_len': all_cap_lens})
             caption = select_strategy(select_c, captions[image_id])
             words, tokens = get_tokens(caption, is_cap=True)
             tokens, cap_len = padding(tokens, c_len)
