@@ -72,16 +72,28 @@ def main():
             f.write(f'{key}: {value}\n')
 
     # setup model
-    model = set_model(args, len(vocab_list), len(ans_list))
+    model = set_model(args.model)(
+                    ntoken=len(vocab_list),
+                    embed_dim=args.embed_dim,
+                    hidden_dim=args.hidden_dim,
+                    v_dim=args.v_dim,
+                    att_fc_dim=args.att_fc_dim,
+                    ans_dim=len(ans_list),
+                    rnn_layer=args.rnn_layer,
+                    cls_layer=args.cls_layer,
+                    dropout=args.dropout,
+                    device=args.device,
+                    c_len=args.c_len,
+                )
     print('model ready.')
 
     if args.mode == 'train':
         # setup training and validation datasets
         print('loading train dataset', end='... ')
-        train_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_train=True)
+        train_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_train=True, dataset_type='vqac')
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
         print('loading valid dataset', end='... ')
-        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True)
+        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
 
         # if need to train continously, load the previous status of model
@@ -113,7 +125,7 @@ def main():
 
         # setup validation dataset
         print('loading valid dataset', end='... ')
-        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True)
+        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
 
         # evaluate
