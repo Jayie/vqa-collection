@@ -51,7 +51,14 @@ def ce_for_language_model(predict, target):
     loss = nn.functional.cross_entropy(predict, target)
     return loss
 
-def ce_for_relevant_captions(vqa_predict, captions, target):
+def ce_for_relevant_captions(vqa_loss, cap_loss, captions, v):
+    # TODO: loss_c_i for 'Generating Question Relevant Captions to Aid Visual Question Answering' (https://arxiv.org/abs/1906.00513)
+    vqa_loss.backward()
+    vqa_grad = v.grad().sum(dim=1) # SUM(d(vqa logit) / d(vqk)), k in range(36) [batch, v_dim]
+    cap_loss.backward()
+    
+
+    
     return
 
 class BottomUpVQAModel(nn.Module):
