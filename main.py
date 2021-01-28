@@ -89,7 +89,6 @@ def main():
                 )
     print('model ready.')
 
-    logger.write('\nmode:', args.mode)
     if args.mode == 'train':
         # setup training and validation datasets
         print('loading train dataset', end='... ')
