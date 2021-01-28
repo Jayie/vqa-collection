@@ -152,7 +152,6 @@ class BottomUpVQAModel(nn.Module):
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
         return self.forward_vqa(v, q)
-        
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):

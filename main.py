@@ -54,6 +54,8 @@ def main():
     args = parse_args()
 
     ###### settings ######
+    # prepare logger
+    logger = Logger(args.comment)
     # set random seed
     random_seed(args.seed)
     # set device
@@ -62,12 +64,8 @@ def main():
     vocab_list = get_vocab_list(args.vocab_path)
     # answer candidate list
     ans_list = get_vocab_list(args.ans_path)
-
-    ###### for saving results ######
-    save_path = os.path.join('checkpoint', args.comment)
-    # prepare logger
-    logger = Logger(args.comment)
     # save the settings
+    save_path = os.path.join('checkpoint', args.comment)
     with open(os.path.join(save_path, 'param.txt'), 'w') as f:
         for key, value in args.__dict__.items():
             f.write(f'{key}: {value}\n')

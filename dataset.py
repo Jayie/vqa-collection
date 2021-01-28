@@ -86,4 +86,4 @@ class VQACaptionDataset(VQADataset):
                 'a': np.array(self.load_answer(index)),
             }
 
-        # TODO: select the most question-relevant captions
+        # TODO: Select the most question-relevant captions
