@@ -11,6 +11,7 @@ from util.attention import ConcatAttention, MultiplyAttention
 
 def set_model(args: dict, ntoken: int, ans_dim: int):
     """Setup the model according to the model type."""
+    model_type = args.model_type
     models = {
         # bottom-up VQA
         'base': BottomUpVQAModel(
@@ -70,7 +71,7 @@ def set_model(args: dict, ntoken: int, ans_dim: int):
     keys = '\"/\"'.join(models.keys())
     msg = f'model_type can only be \"{keys}\", but get \"{model_type}\".'
     assert model_type in models.keys(), msg
-    return models[args.model_type]
+    return models[model_type]
 
 
 def use_pretrained_embedding(model, vocab_path: str, device: str):

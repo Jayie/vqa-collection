@@ -29,6 +29,7 @@ def parse_args():
     # dataset and dataloader settings
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--shuffle', type=bool, default=False, help='shuffle dataloader or not')
+    parser.add_argument('--c_len', type=int, default=20)
 
     # model settings
     parser.add_argument('--model', type=str, default='base', help='model type')
