@@ -7,6 +7,13 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
 
+# Loss function
+def instance_bce_with_logits(predict, target):
+    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+    loss *= target.size(1)
+    return loss
+
+
 # Compute score (according to the VQA evaluation metric)
 def compute_score(predict, target, device):
     target = target.to(device)
@@ -20,14 +27,6 @@ def compute_score(predict, target, device):
 
     scores = one_hots * target / 3
     return scores
-
-
-def instance_bce_with_logits(predict, target):
-    """ Loss function for VQA prediction"""
-    assert predict.dim() == 2
-    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
-    loss *= target.size(1)
-    return loss
 
 
 def ce_for_language_model(predict, target):
@@ -69,9 +68,15 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
         model.train()
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
+            
+            # v = batch['img'].to(device)
+            # q = batch['q'].to(device)
             target = batch['a'].float().to(device)
+
             predict = model(batch)
+
             loss = instance_bce_with_logits(predict, target)
+
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()

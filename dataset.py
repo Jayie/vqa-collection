@@ -60,7 +60,7 @@ class VQADataset(Dataset):
         output = np.array([0]*len(self.ans_list))
         for key, value in answers.items():
             key = int(key)
-            output[key] = value
+            output[key] = min(value, 3)
             
         return np.divide(output, 3).tolist()
             
