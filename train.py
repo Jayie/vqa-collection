@@ -68,9 +68,6 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
         model.train()
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
-            
-            # v = batch['img'].to(device)
-            # q = batch['q'].to(device)
             target = batch['a'].float().to(device)
 
             predict = model(batch)

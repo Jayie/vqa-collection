@@ -245,7 +245,7 @@ class VQAEModel(NewBottomUpVQAModel):
         target = pack_padded_sequence(target, decode_len, batch_first=True).data # [num_non_pad_tokens, 1]
         return predict, target, batches
 
-    def forward(self, v, q, c, cap_len):
+    def forward(self, batch):
         """
         Input:
             v: [batch, v_len, v_dim]
@@ -254,10 +254,16 @@ class VQAEModel(NewBottomUpVQAModel):
             cap_len: [batch, 1]
         Output:[batch, num_answer_candidate]
         """
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
         vqa_predict, v = self.forward_vqa(v, q)
+        q.detach()
+        del q
+
+        c = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
         cap_predict, c, batches = self.forward_cap(v, c, cap_len)
         return (vqa_predict, (cap_predict, batches))
-
 
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
@@ -394,7 +400,10 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         # Return: joint (logits of predictor), visual_feature (for caption generator)
         return joint, visual_feature
 
-    def forward(self, v, q, c, cap_len):
+    def get_gradients(self, grad):
+        self.gradient = grad.detach().numpy()[0]
+
+    def forward(self, batch):
         """
         Forward function for VQA prediction.
 
@@ -405,8 +414,15 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
             cap_len: ground truth caption length [batch, 1]
         Output:[batch, num_answer_candidate]
         """
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        c = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
         vqa_predict, v = self.forward_vqa(v, q, c, cap_len)
         cap_predict, c, batches = self.forward_cap(v, c, cap_len)
+
+        v.register_hook(self.get_gradients)
+
         return vqa_predict, (cap_predict, batches)
 
 
