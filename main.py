@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import set_dataset
 from train import train, evaluate
 from sample import sample_vqa
-from util.model import set_model
+from util.model import set_model, use_pretrained_embedding
 from util.utils import *
 
 def parse_args():
@@ -46,8 +46,11 @@ def parse_args():
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
     parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
-    parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means run the whole epoch)')
+    parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
+
+    # use pre-trained word embedding
+    parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
 
     args = parser.parse_args()
     return args
@@ -87,6 +90,8 @@ def main():
                     device=args.device,
                     c_len=args.c_len,
                 )
+    if args.embed_path != '':
+        model = use_pretrained_embedding(model, args.embed_path, args.device)
     print('model ready.')
 
     if args.mode == 'train':

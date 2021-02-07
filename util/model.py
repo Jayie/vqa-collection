@@ -255,7 +255,7 @@ class VQAEModel(NewBottomUpVQAModel):
         Output:[batch, num_answer_candidate]
         """
         v = batch['img'].to(self.device)
-        q = batch['q'].to(self.device)
+        q = batch['q'].to(self.device) 
         vqa_predict, v = self.forward_vqa(v, q)
         q.detach()
         del q

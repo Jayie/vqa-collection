@@ -59,6 +59,7 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
     
+    model = nn.DataParallel(model)
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
@@ -119,6 +120,7 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
 def evaluate(model, dataloader, device, logger=None):
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
+    
     
     model = model.to(device)
     model.eval()
