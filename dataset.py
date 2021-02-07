@@ -65,9 +65,11 @@ class VQADataset(Dataset):
         return np.divide(output, 3).tolist()
             
     def __getitem__(self, index):
+        img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
         return {
             'id': index,
-            'img': np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))['x'],
+            'img': img['x'],
+            'bbox': img['bbox'],
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
@@ -94,9 +96,11 @@ class VQACaptionDataset(VQADataset):
         print(f'dataset ready ({t:.2f} sec).')
             
     def __getitem__(self, index):
+        img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
         return {
             'id': index,
-            'img': np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))['x'],
+            'img': img['x'],
+            'bbox': img['bbox'],
             'q': np.array(self.questions[index]['q']),
             'c': np.array(self.captions[index]['c']),
             'cap_len': self.captions[index]['cap_len'],
