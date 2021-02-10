@@ -5,6 +5,29 @@ import random
 import numpy as np
 import torch
 
+def spatial_relation(a, b):
+    """
+    Calculate the spatial relation between 2 bounding boxes, and return the type number of relation.
+    The definition of types of spatial relations <a-b> is described in "Exploring Visual Relationship for Image Captioning".
+    1: a is inside b
+    2: a is coverd by b
+    3: a overlaps b (IoU >= 0.5)
+    4~11: 
+    """
+    # get IoU region
+    iou = np.array([
+        max(a[0], b[0]), max(a[1], b[1]), # (x0, y0)
+        min(a[2], b[2]), min(a[3], b[3])  # (x1, y1)
+    ])
+
+    if iou == b: return 1, 2 # If IoU == b: b is inside a
+    elif iou == a: return 2, 1 # Else if IoU == a: a is covered by b
+
+    # Else if IoU >=0.5: a and b overlap
+
+    # Else: compute the distance and angle between a and b
+    # TODO
+
 def get_vocab_list(vocab_path):
     with open(vocab_path, encoding='utf-8') as f:
         vocab_list = f.read().split('\n')
