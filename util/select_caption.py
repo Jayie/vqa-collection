@@ -22,6 +22,9 @@ def similarity(a, b):
         output += score
     return output / b_len
 
+def similarity_given_caption(question, answer, caption):
+    # TODO: compute the similarity between the caption and question-answer pair
+    return
 
 def select_caption():
     # TODO: select the relevant captions with the given Q-A pair.
