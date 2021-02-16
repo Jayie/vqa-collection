@@ -57,7 +57,8 @@ class BottomUpVQAModel(nn.Module):
                  device: str,
                  cls_layer: int = 2,
                  dropout: float = 0.5,
-                 c_len=None,
+                 c_len: int = 0,
+                 rnn_type: str = 'LSTM',
     ):
         """Input:
             For question embedding:
@@ -88,7 +89,8 @@ class BottomUpVQAModel(nn.Module):
             hidden_dim=hidden_dim,
             rnn_layer=rnn_layer,
             dropout=dropout,
-            device=device
+            device=device,
+            rnn_type=rnn_type
         )
         
         # Dropout
@@ -167,16 +169,18 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
                  att_fc_dim: int,
                  ans_dim: int,
                  device: str,
-                 cls_layer=2,
-                 dropout=0.5,
-                 c_len=None,
+                 cls_layer:int = 2,
+                 dropout:float = 0.5,
+                 c_len: int = 0,
+                 rnn_type: str = 'LSTM',
     ):
         # Replace the attention module
         # The forward process is the same
         super().__init__(
             ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
-            device=device, cls_layer=cls_layer, dropout=dropout
+            device=device, cls_layer=cls_layer, dropout=dropout,
+            rnn_type=rnn_type
         )
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
         
@@ -198,7 +202,8 @@ class VQAEModel(NewBottomUpVQAModel):
                  device: str,
                  cls_layer: int = 2,
                  dropout: float = 0.5,
-                 neg_slope: float = 0.01
+                 neg_slope: float = 0.01,
+                 rnn_type: str = 'LSTM',
     ):
         """Input:
             For question embedding:
@@ -224,7 +229,8 @@ class VQAEModel(NewBottomUpVQAModel):
         super().__init__(
             ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
-            device=device, cls_layer=cls_layer, dropout=dropout
+            device=device, cls_layer=cls_layer, dropout=dropout,
+            rnn_type=rnn_type
         )
 
         # Caption generator
@@ -284,7 +290,8 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  cls_layer: int = 2,
                  dropout: float = 0.5,
                  neg_slope: float = 0.01,
-                 num_captions: int = 5
+                 num_captions: int = 5,
+                 rnn_type: str = 'LSTM',
     ):
         """Input:
             For question embedding:
@@ -314,7 +321,8 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         super().__init__(
             ntoken=ntoken, embed_dim=embed_dim, hidden_dim=hidden_dim, rnn_layer=rnn_layer,
             v_dim=v_dim, att_fc_dim=att_fc_dim, ans_dim=ans_dim,
-            device=device, cls_layer=cls_layer, dropout=dropout
+            device=device, cls_layer=cls_layer, dropout=dropout,
+            rnn_type=rnn_type
         )
 
         # Caption embedding module

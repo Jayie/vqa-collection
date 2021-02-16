@@ -59,7 +59,6 @@ def train(  model, train_loader, val_loader, num_epoches, save_path, device, log
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
     
-    model = nn.DataParallel(model)
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()

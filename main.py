@@ -35,6 +35,7 @@ def parse_args():
 
     # model settings
     parser.add_argument('--model', type=str, default='base', help='model type')
+    parser.add_argument('--rnn_type', type=str, default='LSTM', help='RNN layer type (LSTM or GRU, default = LSTM)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=1024, help='the dimension of hidden layers')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
@@ -89,10 +90,13 @@ def main():
                     dropout=args.dropout,
                     device=args.device,
                     c_len=args.c_len,
+                    rnn_type=args.rnn_type
                 )
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)
     print('model ready.')
+    # print(model)
+    # return
 
     if args.mode == 'train':
         # setup training and validation datasets
@@ -125,9 +129,13 @@ def main():
             batches = args.batches,
         )
 
-    elif args.mode == 'val':
-        # load model
-        model.load_state_dict(torch.load(args.load_model))
+    # Evaluate: after training process or for mode 'val'
+    if args.mode  == 'train' or args.mode == 'val':
+        # load model: if not specified, load the best model
+        if args.load_model != '':
+            model.load_state_dict(torch.load(args.load_model))
+        else:
+            model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
         print('load parameters:', args.load_model)
 
         # setup validation dataset
