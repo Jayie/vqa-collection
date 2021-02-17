@@ -5,6 +5,8 @@ import time
 import numpy as np
 from torch.utils.data import Dataset
 
+from util.relation import relation_graph
+
 def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False):
     dataset_types = {
         'vqa':VQADataset,
@@ -69,7 +71,7 @@ class VQADataset(Dataset):
         return {
             'id': index,
             'img': img['x'],
-            'bbox': img['bbox'],
+            'graph': relation_graph(img['bbox'], img['image_w'], img['image_h']),
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
@@ -100,7 +102,7 @@ class VQACaptionDataset(VQADataset):
         return {
             'id': index,
             'img': img['x'],
-            'bbox': img['bbox'],
+            'graph': relation_graph(img['bbox'], img['image_w'], img['image_h']),
             'q': np.array(self.questions[index]['q']),
             'c': np.array(self.captions[index]['c']),
             'cap_len': self.captions[index]['cap_len'],
