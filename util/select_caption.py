@@ -23,15 +23,20 @@ def similarity(a, b):
     return output / a_len
 
 
-def similarity_given_caption(question, answer, caption):
+def select_caption(question, answer, captions):
     """Compute the similarity between the caption and question-answer pair.
     Input:
         question: [q_len, embed_dim]
         answer: [a_len, embed_dim]
-        caption: [c_len, embed_dim]
+        caption: [num_captions, c_len, embed_dim]
     """
-    return (similarity(question, caption) + similarity(answer, caption)) / 2
-
-def select_caption():
-    # TODO: select the relevant captions with the given Q-A pair.
-    return
+    get_similarity = lambda q, a, c: (similarity(q, c) + similarity(a, c)) / 2
+    best_score = 0
+    best_index = 0
+    for i in range(len(captions)):
+        temp = get_similarity(question, answer, captions)
+        if temp > best_score:
+            best_index = i
+            best_score = temp
+    # TODO: Given a question-answer pair, select the most relevant caption.
+    return best_index
