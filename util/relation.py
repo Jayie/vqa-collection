@@ -39,8 +39,9 @@ def spatial_relation(a, b, w, h):
     if dist <= 0.5:
         a = np.arctan2(*a)
         b = np.arctan2(*b)
-        index = lambda x,y: int(np.ceil(np.rad2deg((y-x) / (2*np.pi)) / 45) + 3)
-        return index(a,b), index(b,a)
+        delta = np.rad2deg(b-a)
+        index = lambda x: int(np.ceil((x % 360) / 45) + 3)
+        return index(delta), index(delta+180)
     
     # Else: no relation between a and b
     return 0, 0
