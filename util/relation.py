@@ -1,8 +1,5 @@
 import numpy as np
 
-def area(x):return (x[3]-x[1])*(x[2]-x[0])
-def center(x): return np.array([x[0]+(x[2]-x[0])/2, x[1]+(x[3]-x[1])/2])
-
 def spatial_relation(a, b, w, h):
     """
     Calculate the spatial relation between 2 objects, and return the type number of relation.
@@ -28,18 +25,19 @@ def spatial_relation(a, b, w, h):
     elif np.array_equal(iou, a): return 2, 1 # Else if IoU == a: a is covered by b
 
     # Else if IoU >=0.5: a and b overlap
+    area = lambda x: (x[3]-x[1])*(x[2]-x[0])
     iou =  area(iou) / (area(a) + area(b) - area(iou))
     if iou >= 0.5: return 3, 3
 
     # Else if the ratio of the relation distance and the diagonal length 
     # of the whole image is less than 0.5: compute the angle between a and b
+    center = lambda x: np.array([x[0]+(x[2]-x[0])/2, x[1]+(x[3]-x[1])/2])
     a = center(a)
     b = center(b)
     dist = np.linalg.norm(a-b) / np.linalg.norm([w,h])
     if dist <= 0.5:
-        a = np.arctan2(*a)
-        b = np.arctan2(*b)
-        delta = np.rad2deg(b-a)
+        a = b-a
+        delta = np.rad2deg(np.arctan2(*a)) - 90
         index = lambda x: int(np.ceil((x % 360) / 45) + 3)
         return index(delta), index(delta+180)
     

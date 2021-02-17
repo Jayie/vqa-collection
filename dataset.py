@@ -75,7 +75,7 @@ class VQADataset(Dataset):
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
-        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h']),
+        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h'])
         return output
 
 
@@ -111,5 +111,5 @@ class VQACaptionDataset(VQADataset):
             'a': np.array(self.load_answer(index)),
         }
 
-        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h']),
+        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h'])
         return output

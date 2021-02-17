@@ -395,12 +395,15 @@ class GraphConv(nn.Module):
         adj = (graph != 0) # Adjacency matrix
         # Compute similarity between vi and vj for all vi, vj in input
         alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
+        # Keep alpha >= 0
+        alpha[alpha < 0] = 0
         # Multiply alpha and adjacency matrix since we need only the relations of neighbors
         alpha = torch.mm(alpha, adj)
         # Normalize
         alpha = self.softmax(alpha)
         
         # TODO: update the features considering alpha
+        # TODO: consider the relation type
 
         # Original code
         # support = torch.mm(feature, self.weight)
