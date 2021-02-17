@@ -341,3 +341,22 @@ class CaptionEmbedding(nn.Module):
         output = self.maxpool(output).squeeze() # [batch, hidden_dim]
 
         return output[restore_id,:], alphas[restore_id,:,:]
+
+
+class RelationEncoder(nn.Module):
+    """
+    Relation Encoder mentioned in 'Exploring Visual Relationship for Image Captioning'
+    This module learns visual features considering relationships.
+    """
+    def __init__( self,
+                  in_dim,
+                  out_dim,
+                  relation_num,
+                  conv_layer,
+                ):
+        super().__init__()
+        # TODO
+
+    def forward(self, x):
+        # TODO
+        return
