@@ -92,9 +92,6 @@ class BottomUpVQAModel(nn.Module):
             device=device,
             rnn_type=rnn_type
         )
-        
-        # Dropout
-        self.dropout = nn.Dropout(dropout)
 
         # Attention layer for image features based on questions
         self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
@@ -153,7 +150,6 @@ class BottomUpVQAModel(nn.Module):
         q = batch['q'].to(self.device)
         predict, v = self.forward_vqa(v, q)
         return predict
-
 
 
 class NewBottomUpVQAModel(BottomUpVQAModel):
