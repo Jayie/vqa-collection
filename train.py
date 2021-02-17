@@ -36,9 +36,20 @@ def ce_for_language_model(predict, target):
     return loss
 
 
+def set_optim(optim_type='adamax'):
+    optim = {
+        'adamax': torch.optim.Adamax,
+        'adadelta': torch.optim.Adadelta,
+        'adam': torch.optim.Adam
+    }
+    return optim[optim_type]
+
+
 def train(  model, lr,
             train_loader, val_loader, num_epoches, save_path, device, logger,
-            checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0, model_type='base'
+            checkpoint=10000, max_norm=0.25, comment='',
+            start_epoch=0, batches=0,
+            model_type='base', optim_type='adamax'
     ):
     """
     Train process.
@@ -53,9 +64,11 @@ def train(  model, lr,
         checkpoint: save model status for each N batches (default = 10000)
         max_norm: for clip_grad_norm (default = 0.25)
         batches: only run the first N batches per epoch, if = 0 then run the whole epoch (default = 0)
-        model_type: the type of model, the inputs and loss function we use depend on this (default = base, i.e. Bottom-Up and Top-Down model)
+        model_type: the type of model (default = base, i.e. Bottom-Up and Top-Down model)
+        optim_type: the type of optimizer (default = adamax)
     """
-    optimizer = torch.optim.Adamax(model.parameters())
+    # optimizer = torch.optim.Adamax(model.parameters())
+    optimizer = set_optim(optim_type)(model.parameters(), lr=lr)
     writer = SummaryWriter(comment=comment)
     best_score = 0
     best_epoch = 0
