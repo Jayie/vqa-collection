@@ -1,9 +1,12 @@
+import math
 import numpy as np
 from tqdm import tqdm
 
 import torch
 import torch.optim
 import torch.nn as nn
+from torch.autograd import Variable
+from torch.nn.parameter import Parameter
 from torch.nn.utils.weight_norm import weight_norm
 
 class FCNet(nn.Module):
@@ -32,21 +35,20 @@ class FCNet(nn.Module):
             # If 1-layer:
             # Layer 1: in_dim -> out_dim
             layers.append(weight_norm(nn.Linear(in_dim, out_dim), dim=None))
+            layers.append(nn.ReLU())
         else:
             # Else:
             # Suppose there are N layers
             # Layer 1: in_dim -> mid_dim
             layers.append(weight_norm(nn.Linear(in_dim, mid_dim), dim=None))
             layers.append(nn.ReLU())
-            if dropout != 0:
-                    layers.append(nn.Dropout(dropout, inplace=True))
+            layers.append(nn.Dropout(dropout, inplace=True))
             
             # Layer 2 ~ N-1: mid_dim -> mid_dim
             for _ in range(layer-2):
                 layers.append(weight_norm(nn.Linear(mid_dim, mid_dim), dim=None))
                 layers.append(nn.ReLU())
-                if dropout != 0:
-                    layers.append(nn.Dropout(dropout, inplace=True))
+                layers.append(nn.Dropout(dropout, inplace=True))
             
             # Layer n: mid_dim -> out_dim
             layers.append(weight_norm(nn.Linear(mid_dim, out_dim), dim=None))
@@ -116,17 +118,18 @@ class SentenceEmbedding(nn.Module):
     
     def init_hidden(self, batch):
         """Initialize hidden states."""
-        init = torch.zeros(self.rnn_layer * self.ndirections, batch, self.hidden_dim).to(self.device)
+        shape = (self.rnn_layer * self.ndirections, batch, self.hidden_dim)
         if self.rnn_type == 'LSTM':
-            return (init, init)
+            return (torch.zeros(shape).to(self.device),
+                    torch.zeros(shape).to(self.device))
         else:
-            return init
+            return torch.zeros(shape).to(self.device)
         
     
     def forward_all(self, batch):
         """Return the whole results."""
-        self.rnn.flatten_parameters()
         hidden = self.init_hidden(batch.size(0))
+        self.rnn.flatten_parameters()
         output, hidden = self.rnn(batch, hidden)
         return output
     
@@ -270,11 +273,10 @@ class CaptionEmbedding(nn.Module):
 
     def init_hidden(self, shape):
         """Initialize hidden states."""
-        init = torch.zeros(shape).to(self.device)
         if self.rnn_type == 'LSTM':
-            return (init, init)
+            return (torch.zeros(shape).to(self.device), torch.zeros(shape).to(self.device))
         else:
-            return init
+            return torch.zeros(shape).to(self.device)
 
     def select_hidden(self, h, batch):
         if self.rnn_type == 'LSTM':
@@ -343,16 +345,80 @@ class CaptionEmbedding(nn.Module):
         return output[restore_id,:], alphas[restore_id,:,:]
 
 
+class DotProduct(nn.Module):
+    def __init__(self, a_dim, b_dim, out_dim):
+        self.wa = nn.Linear(a_dim, out_dim)
+        self.wb = nn.Linear(b_dim, out_dim)
+
+    def forward(self, a, b):
+        """
+        a: [batch, a_len, a_dim]
+        b: [batch, b_len, b_dim]
+        output: [batch, a_len, b_len]
+        """
+        a = self.wa(a)
+        b = self.wb(b)
+        b = torch.transpose(b, 1, 2)
+        return torch.bmm(a, b)
+
+
+class GraphConv(nn.Module):
+    """
+    Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
+    reference: https://github.com/tkipf/pygcn
+    """
+    def __init__(self, in_dim, out_dim, bias=True):
+        super().__init_()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
+        self.dot_product = DotProduct(in_dim, in_dim, out_dim)
+        self.softmax = nn.Softmax(dim=1)
+        if bias:
+            self.bias = Parameter(torch.FloatTensor(out_dim))
+        else:
+            self.register_parameter('bias', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
+
+    def forward(self, feature, graph):
+        """Input:
+            feature: [batch, num_objs, in_dim]
+            graph: [batch, num_objs, num_objs]
+        Output: [batch, num_objs, out_dim]
+        """
+        adj = (graph != 0) # Adjacency matrix
+        # Compute similarity between vi and vj for all vi, vj in input
+        alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
+        # Multiply alpha and adjacency matrix since we need only the relations of neighbors
+        alpha = torch.mm(alpha, adj)
+        # Normalize
+        alpha = self.softmax(alpha)
+        
+        # TODO: update the features considering alpha
+
+        # Original code
+        # support = torch.mm(feature, self.weight)
+        # output = torch.spmm(adj, support)
+        # if self.bias is not None: return output + self.bias
+        # else: return output
+
+
 class RelationEncoder(nn.Module):
     """
     Relation Encoder mentioned in 'Exploring Visual Relationship for Image Captioning'
-    This module learns visual features considering relationships.
+    This GCN-based module learns visual features considering relationships.
     """
     def __init__( self,
-                  in_dim,
-                  out_dim,
-                  relation_num,
-                  conv_layer,
+                  in_dim: int,
+                  out_dim: int,
+                  relation_num: int,
+                  conv_layer: int = 1,
                 ):
         super().__init__()
         # TODO
