@@ -15,7 +15,7 @@ PyTorch implementation of VQA models, including:
 
 
 
-| Model | Caption generation | Gragh network | back-propagate from the captins |
+| Model | Caption generation | Gragh network | back-propagate from the captions |
 |:-:|:-:|:-:|:-:|
 | Up-Down |  |  |  |
 | VQA-E | v |  |
@@ -48,3 +48,7 @@ Codes for caption generation adapted from
 Codes for the 2017 VQA Challenge adapted from
 
 - https://github.com/hengyuan-hu/bottom-up-attention-vqa
+
+Codes for graph convolution network adapted from
+- https://github.com/meliketoy/graph-cnn.pytorch
+- https://github.com/tkipf/pygcn
