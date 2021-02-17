@@ -15,7 +15,7 @@ PyTorch implementation of VQA models, including:
 
 
 
-| Model | Caption generation | Gragh network | back-propagate from the captins |
+| Model | Caption generation | Gragh network | back-propagate from the captions |
 |:-:|:-:|:-:|:-:|
 | Up-Down |  |  |  |
 | VQA-E | v |  |
