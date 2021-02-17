@@ -49,6 +49,7 @@ def parse_args():
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
     parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
+    parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
 
     # use pre-trained word embedding
     parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
@@ -115,6 +116,7 @@ def main():
         print('start training.')
         train(
             model=model,
+            lr=args.lr,
             model_type=args.model,
             train_loader=train_loader,
             val_loader=val_loader,

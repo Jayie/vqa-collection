@@ -24,13 +24,13 @@ def similarity(a, b):
 
 
 def similarity_given_caption(question, answer, caption):
-    """Input:
+    """Compute the similarity between the caption and question-answer pair.
+    Input:
         question: [q_len, embed_dim]
         answer: [a_len, embed_dim]
         caption: [c_len, embed_dim]
     """
     return (similarity(question, caption) + similarity(answer, caption)) / 2
-
 
 def select_caption():
     # TODO: select the relevant captions with the given Q-A pair.

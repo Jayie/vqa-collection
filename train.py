@@ -36,13 +36,15 @@ def ce_for_language_model(predict, target):
     return loss
 
 
-def train(  model, train_loader, val_loader, num_epoches, save_path, device, logger,
+def train(  model, lr,
+            train_loader, val_loader, num_epoches, save_path, device, logger,
             checkpoint=10000, max_norm=0.25, comment='', start_epoch=0, batches=0, model_type='base'
     ):
     """
     Train process.
     Input:
         model: the model we want to train
+        lr: learning rate
         train_loader/val_loader: training/validation dataloader,
         start_epoch/num_epoches: start from the start_epoch (default = 0), and end at the num_epoches
         save_path: path for saving models
