@@ -24,7 +24,7 @@ def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='
 
 
 class VQADataset(Dataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type=''):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', get_graph=False):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -39,6 +39,7 @@ class VQADataset(Dataset):
         self.vocab_list = vocab_list
         self.ans_list = ans_list
         self.feature_path = feature_path
+        self.get_graph = get_graph
         t = time.time() - t
         print(f'ready ({t:.2f} sec).')
     
@@ -68,17 +69,18 @@ class VQADataset(Dataset):
             
     def __getitem__(self, index):
         img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
-        return {
+        output = {
             'id': index,
             'img': img['x'],
-            'graph': relation_graph(img['bbox'], img['image_w'], img['image_h']),
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
+        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h']),
+        return output
 
 
 class VQACaptionDataset(VQADataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type=''):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', get_graph=False):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -94,17 +96,20 @@ class VQACaptionDataset(VQADataset):
         self.vocab_list = vocab_list
         self.ans_list = ans_list
         self.feature_path = feature_path
+        self.get_graph = get_graph
         t = time.time() - t
         print(f'dataset ready ({t:.2f} sec).')
             
     def __getitem__(self, index):
         img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
-        return {
+        output = {
             'id': index,
             'img': img['x'],
-            'graph': relation_graph(img['bbox'], img['image_w'], img['image_h']),
             'q': np.array(self.questions[index]['q']),
             'c': np.array(self.captions[index]['c']),
             'cap_len': self.captions[index]['cap_len'],
             'a': np.array(self.load_answer(index)),
         }
+
+        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h']),
+        return output
