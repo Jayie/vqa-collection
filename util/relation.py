@@ -1,7 +1,7 @@
 import numpy as np
 
 def area(x):return (x[3]-x[1])*(x[2]-x[0])
-def center(x): return np.array([(x[2]-x[0])/2, (x[3]-x[1])/2])
+def center(x): return np.array([x[0]+(x[2]-x[0])/2, x[1]+(x[3]-x[1])/2])
 
 def spatial_relation(a, b, w, h):
     """
@@ -58,7 +58,7 @@ def relation_graph(bbox, w, h):
     output = np.zeros((num_objs, num_objs))
 
     for i in range(num_objs):
-        for j in range(i, num_objs):
+        for j in range(i+1, num_objs):
             output[i,j], output[j,i] = spatial_relation(bbox[i], bbox[j], w, h)
     return output
 
