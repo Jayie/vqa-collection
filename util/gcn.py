@@ -4,15 +4,13 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-from util.attention import DotProduct
-
 class BaseGraphConv(nn.Module):
     """
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
     reference: https://github.com/tkipf/pygcn
     """
     def __init__(self, in_dim, out_dim, bias=True):
-        super().__init_()
+        super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
@@ -36,7 +34,7 @@ class BaseGraphConv(nn.Module):
         """
         batch = feature.size(0)
         output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
-        output = torch.bmm(graph, feature)
+        output = torch.bmm(graph, output)
         if self.bias is not None: return output + self.bias.unsqueeze(0).repeat(batch,1,1)
         return output
 
@@ -59,10 +57,28 @@ class DirectedGraphConv(BaseGraphConv):
         """
         batch = feature.size(0)
         output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
-        output = torch.bmm(graph!=0, feature)
+        output = torch.bmm(graph!=0, output)
         
         # Add bias according to labels
         return output + self.bias[graph.numpy(),:].sum(2)
+
+
+class DotProduct(nn.Module):
+    def __init__(self, a_dim, b_dim, out_dim):
+        super().__init__()
+        self.wa = nn.Linear(a_dim, out_dim)
+        self.wb = nn.Linear(b_dim, out_dim)
+
+    def forward(self, a, b):
+        """
+        a: [batch, a_len, a_dim]
+        b: [batch, b_len, b_dim]
+        output: [batch, a_len, b_len]
+        """
+        a = self.wa(a)
+        b = self.wb(b)
+        b = torch.transpose(b, 1, 2)
+        return torch.bmm(a, b)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
@@ -77,19 +93,21 @@ class CorrelatedGraphConv(DirectedGraphConv):
             graph: [batch, num_objs, num_objs]
         Output: [batch, num_objs, out_dim]
         """
-        output = torch.mm(feature, self.weight)
+        batch = feature.size(0)
+        adj = (graph!=0).float()
+        output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+        output = torch.bmm(adj, output)
 
         # Compute correlations between vi and vj for all vi, vj in input
         alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
         # alpha = max(0, alpha)
         alpha[alpha<0] = 0
         # Only keep the correlation score of neighbors
-        alpha = torch.mm(alpha, graph!=0)
+        alpha = torch.bmm(adj, alpha)
         # Normalize
         alpha = self.softmax(alpha)
         # Mutiply
-        output = torch.mm(alpha, output)
+        output = torch.bmm(alpha, output)
 
-        # Add bias for certain labels
-
-        return output
+        # Add bias according to labels
+        return output + self.bias[graph.numpy(),:].sum(2)
