@@ -362,56 +362,6 @@ class DotProduct(nn.Module):
         return torch.bmm(a, b)
 
 
-class GraphConv(nn.Module):
-    """
-    Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
-    reference: https://github.com/tkipf/pygcn
-    """
-    def __init__(self, in_dim, out_dim, bias=True):
-        super().__init_()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
-        self.dot_product = DotProduct(in_dim, in_dim, out_dim)
-        self.softmax = nn.Softmax(dim=1)
-        if bias:
-            self.bias = Parameter(torch.FloatTensor(out_dim))
-        else:
-            self.register_parameter('bias', None)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
-        self.weight.data.uniform_(-stdv, stdv)
-        if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
-
-    def forward(self, feature, graph):
-        """Input:
-            feature: [batch, num_objs, in_dim]
-            graph: [batch, num_objs, num_objs]
-        Output: [batch, num_objs, out_dim]
-        """
-        adj = (graph != 0) # Adjacency matrix
-        # Compute similarity between vi and vj for all vi, vj in input
-        alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
-        # Keep alpha >= 0
-        alpha[alpha < 0] = 0
-        # Multiply alpha and adjacency matrix since we need only the relations of neighbors
-        alpha = torch.mm(alpha, adj)
-        # Normalize
-        alpha = self.softmax(alpha)
-        
-        # TODO: update the features considering alpha
-        # TODO: consider the relation type
-
-        # Original code
-        # support = torch.mm(feature, self.weight)
-        # output = torch.spmm(adj, support)
-        # if self.bias is not None: return output + self.bias
-        # else: return output
-
-
 class RelationEncoder(nn.Module):
     """
     Relation Encoder mentioned in 'Exploring Visual Relationship for Image Captioning'
