@@ -16,7 +16,6 @@ class BaseGraphConv(nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
-        self.softmax = nn.Softmax(dim=1)
         if bias:
             self.bias = Parameter(torch.FloatTensor(out_dim))
         else:
@@ -35,16 +34,22 @@ class BaseGraphConv(nn.Module):
             graph: [batch, num_objs, num_objs] (note that this graph is an adjacency matrix)
         Output: [batch, num_objs, out_dim]
         """
-        output = torch.mm(feature, self.weight)
-        output = torch.mm(graph, feature)
-        if self.bias is not None: return output + self.bias
+        batch = feature.size(0)
+        output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+        output = torch.bmm(graph, feature)
+        if self.bias is not None: return output + self.bias.unsqueeze(0).repeat(batch,1,1)
         return output
+
+    def __repr__(self):
+        return self.__class__.__name__ + ' (' + str(self.in_dim) + ' -> ' + str(self.out_dim) + ')'
 
 
 class DirectedGraphConv(BaseGraphConv):
-    def __init__(self, in_dim, out_dim):
-        super().__init__(in_dim, out_dim, False)
-        # TODO: define biases for different labels
+    def __init__(self, in_dim, out_dim, num_labels):
+        super().__init__(in_dim, out_dim, True)
+        # Define biases for different labels
+        self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
+        self.reset_parameters()
 
     def forward(self, feature, graph):
         """Input:
@@ -52,15 +57,17 @@ class DirectedGraphConv(BaseGraphConv):
             graph: [batch, num_objs, num_objs]
         Output: [batch, num_objs, out_dim]
         """
-        output = torch.mm(feature, self.weight)
-        # Add bias for certain labels
-        # TODO
-        return output
+        batch = feature.size(0)
+        output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+        output = torch.bmm(graph!=0, feature)
+        
+        # Add bias according to labels
+        return output + self.bias[graph.numpy(),:].sum(2)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
-    def __init__(self, in_dim, out_dim):
-        super().__init__(in_dim, out_dim)
+    def __init__(self, in_dim, out_dim, num_labels):
+        super().__init__(in_dim, out_dim, num_labels)
         self.dot_product = DotProduct(in_dim, in_dim, out_dim)
         self.softmax = nn.Softmax(dim=1)
 
@@ -84,4 +91,5 @@ class CorrelatedGraphConv(DirectedGraphConv):
         output = torch.mm(alpha, output)
 
         # Add bias for certain labels
+
         return output
