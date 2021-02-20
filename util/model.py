@@ -58,7 +58,7 @@ class BottomUpVQAModel(nn.Module):
                  cls_layer: int = 2,
                  dropout: float = 0.5,
                  c_len: int = 0,
-                 rnn_type: str = 'LSTM',
+                 rnn_type: str = 'GRU',
     ):
         """Input:
             For question embedding:
@@ -88,7 +88,7 @@ class BottomUpVQAModel(nn.Module):
             in_dim=embed_dim,
             hidden_dim=hidden_dim,
             rnn_layer=rnn_layer,
-            dropout=dropout,
+            # dropout=dropout,
             device=device,
             rnn_type=rnn_type
         )
