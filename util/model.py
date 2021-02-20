@@ -425,7 +425,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         vqa_predict, v = self.forward_vqa(v, q, c, cap_len)
         cap_predict, c, batches = self.forward_cap(v, c, cap_len)
 
-        v.register_hook(self.get_gradients)
+        # TODO: select relevant captions for training (Ch. 3.4)
 
         return vqa_predict, (cap_predict, batches)
 

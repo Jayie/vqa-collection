@@ -45,6 +45,7 @@ class BaseGraphConv(nn.Module):
 class DirectedGraphConv(BaseGraphConv):
     def __init__(self, in_dim, out_dim, num_labels):
         super().__init__(in_dim, out_dim, True)
+        # TODO: Define weights for different <i,j>, <j,i> and <i,i>
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
         self.reset_parameters()

@@ -88,6 +88,8 @@ def train(  model, lr,
             predict = model(batch)
 
             loss = instance_bce_with_logits(predict, target)
+            # TODO: loss functions for captioning
+            # TODO: for VQA with Question-relevant Caption, back-prop the gradients only from the most relevant caption
 
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
