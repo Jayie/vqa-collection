@@ -7,6 +7,11 @@ from torch.utils.data import Dataset
 
 from util.relation import relation_graph
 
+#################################################################
+# TODO: Reconstruct dataset to improve efficiency.
+#       Note that the preprocessing may also need to be rewrited
+#################################################################
+
 def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False):
     dataset_types = {
         'vqa':VQADataset,

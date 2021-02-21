@@ -2,7 +2,7 @@ import numpy as np
 
 def spatial_relation(a, b, w, h):
     """
-    Calculate the spatial relation between 2 objects, and return the type number of relation.
+    Calculate the spatial relation between 2 objects.
     Input:
         a: bbox of object i
         b: bbox of object j
@@ -44,12 +44,27 @@ def spatial_relation(a, b, w, h):
     # Else: no relation between a and b
     return 0, 0
 
-def relation_graph(bbox, w, h):
+
+def semantic_relation(a, b, w, h):
+    """
+    Calculate the semantic relation between 2 objects.
+    Input:
+        a: bbox of object i
+        b: bbox of object j
+        w: the width of the whole image
+        h: the height of the whole image
+    Output: the type number of both a and b
+    """
+    return
+
+
+def relation_graph(bbox, w, h, relation=spatial_relation):
     """Build relation graph of objects in an image.
     Input:
         bbox: [num_objs, 4] the bounding boxes of objects in an image
         w: the width of the image
         h: the height of the image
+        relation: function to construct relation graph (default = spatial_relation)
     Output: [num_objs, num_objs]
     """
     num_objs = bbox.shape[0]
@@ -57,6 +72,5 @@ def relation_graph(bbox, w, h):
 
     for i in range(num_objs):
         for j in range(i+1, num_objs):
-            output[i,j], output[j,i] = spatial_relation(bbox[i], bbox[j], w, h)
+            output[i,j], output[j,i] = relation(bbox[i], bbox[j], w, h)
     return output
-
