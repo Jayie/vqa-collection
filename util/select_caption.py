@@ -29,6 +29,7 @@ def select_caption(question, answer, captions):
         question: [q_len, embed_dim]
         answer: [a_len, embed_dim]
         caption: [num_captions, c_len, embed_dim]
+    Output: the index of the most relevant caption (int)
     """
     get_similarity = lambda q, a, c: (similarity(q, c) + similarity(a, c)) / 2
     best_score = 0
@@ -38,5 +39,4 @@ def select_caption(question, answer, captions):
         if temp > best_score:
             best_index = i
             best_score = temp
-    # TODO: Given a question-answer pair, select the most relevant caption.
     return best_index
