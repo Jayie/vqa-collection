@@ -7,15 +7,15 @@ PyTorch reimplementation of VQA models, including:
   - [x] VQA module
   - [x] Caption module
   - [ ] Caption selection strategy (should be added into preprocessing)
-- (WIP) [Generating Question Relevant Captions to Aid Visual Question Answering](https://arxiv.org/abs/1906.00513)
+- [Generating Question Relevant Captions to Aid Visual Question Answering](https://arxiv.org/abs/1906.00513)
   - [x] VQA module
   - [x] Caption module
   - [ ] Caption selection strategy
-- (TODO) [Relation-Aware Graph Attention Network for Visual Question Answering](https://arxiv.org/abs/1903.12314)
+- [Relation-Aware Graph Attention Network for Visual Question Answering](https://arxiv.org/abs/1903.12314)
   - [x] Spatial relation
   - [ ] Semantic relation
   - [ ] Implicit relation
-- (TODO) [Exploring Visual Relationship for Image Captioning](https://arxiv.org/abs/1809.07041)
+- [Exploring Visual Relationship for Image Captioning](https://arxiv.org/abs/1809.07041)
 
 
 ## Comparison
@@ -57,5 +57,5 @@ Codes for the 2017 VQA Challenge adapted from
 - https://github.com/hengyuan-hu/bottom-up-attention-vqa
 
 Codes for graph convolution network adapted from
-- https://github.com/meliketoy/graph-cnn.pytorch
 - https://github.com/tkipf/pygcn
+- https://github.com/meliketoy/graph-cnn.pytorch
