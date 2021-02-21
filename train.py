@@ -86,7 +86,6 @@ def train(  model, lr,
             target = batch['a'].float().to(device)
 
             predict = model(batch)
-
             loss = instance_bce_with_logits(predict, target)
             # TODO: loss functions for captioning
             # TODO: for VQA with Question-relevant Caption, back-prop the gradients only from the most relevant caption

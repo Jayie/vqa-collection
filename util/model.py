@@ -88,7 +88,7 @@ class BottomUpVQAModel(nn.Module):
             in_dim=embed_dim,
             hidden_dim=hidden_dim,
             rnn_layer=rnn_layer,
-            # dropout=dropout,
+            dropout=0.0,
             device=device,
             rnn_type=rnn_type
         )

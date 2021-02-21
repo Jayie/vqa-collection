@@ -84,7 +84,7 @@ class SentenceEmbedding(nn.Module):
                     hidden_dim: int,
                     device: str,
                     rnn_layer: int = 1,
-                    dropout: float = 0.5,
+                    dropout: float = 0.0,
                     rnn_type: str = 'LSTM',
                     bidirect: bool = False,
         ):
