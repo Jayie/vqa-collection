@@ -1,14 +1,21 @@
 # VQA Collection
 
-PyTorch implementation of VQA models, including:
+PyTorch reimplementation of VQA models, including:
 
 - [Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering](https://arxiv.org/abs/1707.07998)
+- [VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions](https://arxiv.org/abs/1803.07464)
+  - [x] VQA module
+  - [x] Caption module
+  - [ ] Caption selection strategy (should be added into preprocessing)
 - (WIP) [Generating Question Relevant Captions to Aid Visual Question Answering](https://arxiv.org/abs/1906.00513)
-
-  - VQA module Done
-  - TODO: Caption module and loss function
-- (TODO) [VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions](https://arxiv.org/abs/1803.07464)
+  - [x] VQA module
+  - [x] Caption module
+  - [ ] Caption selection strategy
 - (TODO) [Relation-Aware Graph Attention Network for Visual Question Answering](https://arxiv.org/abs/1903.12314)
+  - [x] Spatial relation
+  - [ ] Semantic relation
+  - [ ] Implicit relation
+- (TODO) [Exploring Visual Relationship for Image Captioning](https://arxiv.org/abs/1809.07041)
 
 
 ## Comparison
@@ -36,7 +43,7 @@ PyTorch implementation of VQA models, including:
 
 | Exp | Model | All | Yes/No | Number | Other |
 | - | :-: | :-: | :-: | :-: | :-: |
-| exp1 | Up-Down | (training) |   |   |   |
+| exp1 | Up-Down |||||
 
 ## References
 
