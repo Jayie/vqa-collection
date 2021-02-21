@@ -2,32 +2,30 @@
 
 PyTorch reimplementation of VQA models, including:
 
-- [Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering](https://arxiv.org/abs/1707.07998)
-- [VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions](https://arxiv.org/abs/1803.07464)
-  - [x] VQA module
-  - [x] Caption module
+1. [Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering, CVPR 2018](https://arxiv.org/abs/1707.07998)
+2. [VQA-E: Explaining, Elaborating, and Enhancing Your Answers for Visual Questions](https://arxiv.org/abs/1803.07464)
   - [ ] Caption selection strategy (should be added into preprocessing)
-- [Generating Question Relevant Captions to Aid Visual Question Answering](https://arxiv.org/abs/1906.00513)
-  - [x] VQA module
-  - [x] Caption module
+3. [Generating Question Relevant Captions to Aid Visual Question Answering](https://arxiv.org/abs/1906.00513)
+  - [x] Caption embedding module
   - [ ] Caption selection strategy
-- [Relation-Aware Graph Attention Network for Visual Question Answering](https://arxiv.org/abs/1903.12314)
+4. [Relation-Aware Graph Attention Network for Visual Question Answering](https://arxiv.org/abs/1903.12314)
   - [x] Spatial relation
   - [ ] Semantic relation
   - [ ] Implicit relation
-- [Exploring Visual Relationship for Image Captioning](https://arxiv.org/abs/1809.07041)
+5. [Exploring Visual Relationship for Image Captioning, ECCV 2018](https://arxiv.org/abs/1809.07041)
 
 
 ## Comparison
 
 
 
-| Model | Caption generation | Gragh network | back-propagate from the captions |
-|:-:|:-:|:-:|:-:|
-| Up-Down |  |  |  |
-| VQA-E | v |  |
-| Q-Relevant | v |  | Only from the most relevant captions |
-| ReGAT |  | v | |
+| Model | VQA | Captioning | Gragh network | multi-task |
+|:-:|:-:|:-:|:-:|:-:|
+| Up-Down | v | v |  | x |
+| VQA-E | v | v |  | use captions relevant to corresponding Q-A pairs  |
+| Q-Relevant | v | v |  | only back-propagate from the most relevant captions |
+| ReGAT | v | | v | x |
+| GCN-LSTM | | v | v | x |
 
 
 ## Preprocessing
