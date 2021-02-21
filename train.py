@@ -16,16 +16,14 @@ def instance_bce_with_logits(predict, target):
 
 # Compute score (according to the VQA evaluation metric)
 def compute_score(predict, target, device):
-    target = target.to(device)
-    
     # get the most possible predicted results for each question
-    logits = torch.max(predict, 1)[1].to(device)
+    logits = torch.max(predict, 1)[1].data
 
     # transfer predicted results into one-hot encoding
     one_hots = torch.zeros(*target.size()).to(device)
     one_hots.scatter_(1, logits.view(-1, 1), 1)
 
-    scores = one_hots * target / 3
+    scores = one_hots * target
     return scores
 
 
