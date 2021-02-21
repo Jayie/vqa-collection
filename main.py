@@ -30,16 +30,16 @@ def parse_args():
 
     # dataset and dataloader settings
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
-    parser.add_argument('--shuffle', type=bool, default=False, help='shuffle dataloader or not')
+    parser.add_argument('--shuffle', type=bool, default=True, help='shuffle dataloader or not')
     parser.add_argument('--c_len', type=int, default=20)
 
     # model settings
     parser.add_argument('--model', type=str, default='base', help='model type')
-    parser.add_argument('--rnn_type', type=str, default='LSTM', help='RNN layer type (LSTM or GRU, default = LSTM)')
+    parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU or LSTM, default = GRU)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
-    parser.add_argument('--hidden_dim', type=int, default=1024, help='the dimension of hidden layers')
+    parser.add_argument('--hidden_dim', type=int, default=512, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
-    parser.add_argument('--att_fc_dim', type=int, default=1024, help='the dimension of fc layer in the attention module')
+    parser.add_argument('--att_fc_dim', type=int, default=512, help='the dimension of fc layer in the attention module (default = 512)')
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
@@ -150,7 +150,8 @@ def main():
             model=model,
             dataloader=val_loader,
             device=args.device,
-            logger=logger
+            logger=logger,
+            comment=args.comment
         )
 
         # Write the results to Tensorboard

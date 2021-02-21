@@ -97,8 +97,8 @@ def train(  model, lr,
             score = compute_score(predict, target, device).sum().item()
 
             # write loss and score to Tensorboard
-            writer.add_scalar(f'{model_type}/loss', loss.item(), epoch * batches + i)
-            writer.add_scalar(f'{model_type}/score', score, epoch * batches + i)
+            writer.add_scalar(f'train/loss', loss.item(), epoch * batches + i)
+            writer.add_scalar(f'train/score', score, epoch * batches + i)
             
             if i % checkpoint == 0 and i != 0:
                 # save checkpoint
@@ -130,11 +130,11 @@ def train(  model, lr,
 
         logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
 
-def evaluate(model, dataloader, device, logger=None):
+def evaluate(model, dataloader, device, logger=None, comment=None):
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     
-    
+    if comment: writer = SummaryWriter(comment=comment)
     model = model.to(device)
     model.eval()
     start = time.time()
@@ -144,8 +144,9 @@ def evaluate(model, dataloader, device, logger=None):
             predict = model(batch)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
-            
             target_score += target.max(1)[0].sum().item()
+
+            if comment: writer.add_scalar(f'val/score', batch_score, i)
     
     l = len(dataloader.dataset)
     score /= l
