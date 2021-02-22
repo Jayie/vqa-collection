@@ -7,15 +7,15 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
 
-# Loss function
 def instance_bce_with_logits(predict, target):
+    """Loss function for VQA prediction"""
     loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
     loss *= target.size(1)
     return loss
 
 
-# Compute score (according to the VQA evaluation metric)
 def compute_score(predict, target, device):
+    """Compute score (according to the VQA evaluation metric)"""
     # get the most possible predicted results for each question
     logits = torch.max(predict, 1)[1].data
 
@@ -34,12 +34,13 @@ def ce_for_language_model(predict, target):
     return loss
 
 
-def set_optim(optim_type='adamax'):
+def set_optim(optim_type: str = 'adamax'):
     optim = {
         'adamax': torch.optim.Adamax,
         'adadelta': torch.optim.Adadelta,
         'adam': torch.optim.Adam
     }
+    assert optim_type in optim.keys()
     return optim[optim_type]
 
 
