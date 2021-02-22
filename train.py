@@ -128,7 +128,9 @@ def train(  model, lr,
             best_score = eval_score
             best_epoch = epoch
 
-        logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
+        msg = f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}'
+        print(msg)
+        logger.write(msg)
 
 def evaluate(model, dataloader, device, logger=None, comment=None):
     score = 0

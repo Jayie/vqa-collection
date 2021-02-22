@@ -15,9 +15,10 @@ import torch.nn as nn
 from util.utils import get_vocab_list
 from util.modules import PretrainedWordEmbedding
 
-
+############################################
 # TODO: Reconstruct
 # Implement the caption selection strategy
+############################################
 
 def parse_args():
     parser = argparse.ArgumentParser()

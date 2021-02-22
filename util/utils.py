@@ -15,7 +15,6 @@ def random_seed(seed=10):
     """
     set random seed
     """
-
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -27,7 +26,6 @@ def set_device():
     """
     set device as 'cuda' if available, otherwise 'cpu'
     """
-
     # Use cuda if available
     if torch.cuda.is_available():
         device = 'cuda'
@@ -36,7 +34,6 @@ def set_device():
     else:
         device = 'cpu'
     return device
-
 
 class Logger():
     def __init__(self, exp_name, log_name='log.txt'):
@@ -47,20 +44,6 @@ class Logger():
         t = time.strftime("%y%m%d-%H-%M-%S_", time.localtime()) # timestamp
         self.log_file = open(os.path.join(save_path, t + log_name), 'w+')
         self.exp_name = exp_name
-    #     self.infos = {}
-
-    # def append(self, key, value):
-    #     values = self.infos.setdefault(key, [])
-    #     values.append(value)
-
-    # def log(self, extra_msg=''):
-    #     msg = [extra_msg]
-    #     for key, values in self.infos.items():
-    #         msg.append(f'{key} {np.mean(values):.6f}')
-    #     self.log_file.write('\n'.join(msg) + '\n')
-    #     self.log_file.flush()
-    #     self.infos = {}
-    #     return msg
 
     def write(self, msg):
         self.log_file.write(time.strftime("%y%m%d-%H:%M:%S ", time.localtime())) # timestamp
