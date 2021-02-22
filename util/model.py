@@ -165,10 +165,10 @@ class NewBottomUpVQAModel(BottomUpVQAModel):
                  att_fc_dim: int,
                  ans_dim: int,
                  device: str,
-                 cls_layer:int = 2,
-                 dropout:float = 0.5,
+                 cls_layer: int = 2,
+                 dropout: float = 0.5,
                  c_len: int = 0,
-                 rnn_type: str = 'LSTM',
+                 rnn_type: str = 'GRU',
     ):
         # Replace the attention module
         # The forward process is the same
@@ -199,7 +199,7 @@ class VQAEModel(NewBottomUpVQAModel):
                  cls_layer: int = 2,
                  dropout: float = 0.5,
                  neg_slope: float = 0.01,
-                 rnn_type: str = 'LSTM',
+                 rnn_type: str = 'GRU',
     ):
         """Input:
             For question embedding:
@@ -265,7 +265,7 @@ class VQAEModel(NewBottomUpVQAModel):
         c = batch['c'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
         cap_predict, c, batches = self.forward_cap(v, c, cap_len)
-        return (vqa_predict, (cap_predict, batches))
+        return vqa_predict, (cap_predict, batches)
 
 
 class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
@@ -287,7 +287,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
                  dropout: float = 0.5,
                  neg_slope: float = 0.01,
                  num_captions: int = 5,
-                 rnn_type: str = 'LSTM',
+                 rnn_type: str = 'GRU',
     ):
         """Input:
             For question embedding:
@@ -442,7 +442,7 @@ class CaptionDecoder(nn.Module):
                  max_len: int,
                  device: str,
                  dropout: float = 0.5,
-                 rnn_type: str = 'LSTM'
+                 rnn_type: str = 'GRU'
     ):
         """Input:
             For question embedding:
@@ -457,7 +457,7 @@ class CaptionDecoder(nn.Module):
             Others:
                 device: device
                 dropout: dropout (default = 0.5)
-                rnn_type: choose the type of RNN (default = LSTM)
+                rnn_type: choose the type of RNN (default = GRU)
         """
         super().__init__()
         self.rnn_type = rnn_type
@@ -542,7 +542,7 @@ class CaptionDecoder(nn.Module):
             h1 = self.select_hidden(h1, batch_t) # h1: [batch_t, hidden_dim]
             h2 = self.select_hidden(h2, batch_t) # h2: [batch_t, hidden_dim]
 
-            # 1: Word RNN
+            # First RNN: Word RNN
             h = h2[0] if self.rnn_type == 'LSTM' else h2
             h1 = self.word_rnn(
                 torch.cat([
@@ -559,7 +559,7 @@ class CaptionDecoder(nn.Module):
             att = self.attention(v[:batch_t], h) # [batch_t, num_objs, 1]
             att_v = (att * v[:batch_t]).sum(1) # [batch_t, v_dim]
 
-            # 2: Language RNN
+            # Second RNN: Language RNN
             h2 = self.language_rnn(
                 torch.cat([att_v, h], dim=1)    # x2: [batch_t, v_dim + hidden_dim]
                 , h2                            # h2: [batch_t, hidden_dim]
@@ -575,5 +575,4 @@ class CaptionDecoder(nn.Module):
         
         # Softmax
         output = self.softmax(output)
-
         return output[restore_id,:,:], sort_caption, decode_len, batches, restore_id, alphas[restore_id,:,:]
