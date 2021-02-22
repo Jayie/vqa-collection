@@ -57,8 +57,9 @@ class DirectedGraphConv(BaseGraphConv):
         Output: [batch, num_objs, out_dim]
         """
         batch = feature.size(0)
+        adj = (graph!=0).float()
         output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
-        output = torch.bmm(graph!=0, output)
+        output = torch.bmm(adj, output)
         
         # Add bias according to labels
         return output + self.bias[graph.numpy(),:].sum(2)
