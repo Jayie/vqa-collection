@@ -120,12 +120,12 @@ def train(  model, lr,
 
         # evaluate
         eval_score, bound = evaluate(model, val_loader, device)
-        writer.add_scalar('train/eval', eval_score, epoch)
         
         # save log
         avg_loss /= len(train_loader.dataset)
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
+        writer.add_scalar('train/eval', eval_score, epoch)
 
         # reset average loss
         avg_loss = 0
