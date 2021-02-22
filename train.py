@@ -74,6 +74,11 @@ def train(  model, lr,
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
     
+    # Parallelism
+    if torch.cuda.device_count() > 1:
+        print('Use', torch.cuda.device_count(), 'GPUs.')
+        model = nn.DataParallel(model)
+    
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
