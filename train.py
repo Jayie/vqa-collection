@@ -104,8 +104,8 @@ def train(  model, lr,
             score = compute_score(predict, target, device).sum().item()
 
             # write loss and score to Tensorboard
-            writer.add_scalar(f'train/loss', loss.item(), epoch * batches + i)
-            writer.add_scalar(f'train/score', score, epoch * batches + i)
+            writer.add_scalar('train/loss', loss.item(), epoch * batches + i)
+            writer.add_scalar('train/score', score, epoch * batches + i)
             
             if i % checkpoint == 0 and i != 0:
                 # save checkpoint
@@ -120,6 +120,7 @@ def train(  model, lr,
 
         # evaluate
         eval_score, bound = evaluate(model, val_loader, device)
+        writer.add_scalar('train/eval', eval_score, epoch)
         
         # save log
         avg_loss /= len(train_loader.dataset)
