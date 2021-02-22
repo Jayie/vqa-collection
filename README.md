@@ -22,8 +22,8 @@ PyTorch reimplementation of VQA models, including:
 | Model | VQA | Captioning | Gragh network | multi-task |
 |:-:|:-:|:-:|:-:|:-:|
 | Up-Down | v | v |  | x |
-| VQA-E | v | v |  | use captions relevant to corresponding Q-A pairs  |
-| Q-Relevant | v | v |  | only back-propagate from the most relevant captions |
+| VQA-E | v | v |  | use captions that is most similar to corresponding Q-A pairs |
+| Q-Relevant | v | v |  | use all captions but only back-propagate from the most relevant one |
 | ReGAT | v | | v | x |
 | GCN-LSTM | | v | v | x |
 
@@ -45,15 +45,13 @@ PyTorch reimplementation of VQA models, including:
 
 ## References
 
-Codes for caption generation adapted from
-
-- https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning
-- https://github.com/poojahira/image-captioning-bottom-up-top-down
-
-Codes for the 2017 VQA Challenge adapted from
-
-- https://github.com/hengyuan-hu/bottom-up-attention-vqa
-
-Codes for graph convolution network adapted from
-- https://github.com/tkipf/pygcn
-- https://github.com/meliketoy/graph-cnn.pytorch
+- Caption generation
+    - https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning
+    - https://github.com/poojahira/image-captioning-bottom-up-top-down
+- 2017 VQA Challenge
+    - https://github.com/hengyuan-hu/bottom-up-attention-vqa
+- Graph convolution network
+    - https://github.com/tkipf/pygcn
+    - https://github.com/meliketoy/graph-cnn.pytorch
+- Visualizing attention map
+    - https://github.com/kelvinxu/arctic-captions/blob/master/alpha_visualization.ipynb
