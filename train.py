@@ -46,7 +46,7 @@ def set_optim(optim_type: str = 'adamax'):
 
 def train(  model, lr,
             train_loader, val_loader, num_epoches, save_path, device, logger,
-            checkpoint=10000, max_norm=0.25, comment='',
+            comment='', checkpoint=10000, max_norm=0.25,
             start_epoch=0, batches=0,
             model_type='base', optim_type='adamax'
     ):
@@ -55,14 +55,15 @@ def train(  model, lr,
     Input:
         model: the model we want to train
         lr: learning rate
-        train_loader/val_loader: training/validation dataloader,
+        train_loader/val_loader: training/validation dataloader
         start_epoch/num_epoches: start from the start_epoch (default = 0), and end at the num_epoches
         save_path: path for saving models
         device: device
         logger: logger for writing log file
+        comment: comment for Tensorboard Summary Writer (default = '')
         checkpoint: save model status for each N batches (default = 10000)
         max_norm: for clip_grad_norm (default = 0.25)
-        batches: only run the first N batches per epoch, if = 0 then run the whole epoch (default = 0)
+        batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
         model_type: the type of model (default = base, i.e. Bottom-Up and Top-Down model)
         optim_type: the type of optimizer (default = adamax)
     """
@@ -134,6 +135,15 @@ def train(  model, lr,
         logger.write(msg)
 
 def evaluate(model, dataloader, device, logger=None, comment=None):
+    """
+    Evaluate process.
+    Input:
+        model: the model we want to train
+        val_loader: validation dataloader
+        device: device
+        logger: logger for writing log file, if logger = None then do not write results into log file (default = None)
+        comment: comment for Tensorboard Summary Writer, if comment = None then do not write results into Tensorboard (default = None)
+    """
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     
@@ -155,7 +165,7 @@ def evaluate(model, dataloader, device, logger=None, comment=None):
     score /= l
     target_score /= l
 
-    if logger != None:
+    if logger:
         # Write to the log file
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
