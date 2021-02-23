@@ -126,7 +126,7 @@ def main():
             logger=logger,
             checkpoint=10000,
             max_norm=0.25,
-            comment=args.comment,
+            comment=args.comment+'_train',
             start_epoch=args.start_epoch,
             batches = args.batches,
         )
@@ -134,11 +134,10 @@ def main():
     # Evaluate: after training process or for mode 'val'
     if args.mode  == 'train' or args.mode == 'val':
         # load model: if not specified, load the best model
-        if args.load_model != '':
-            model.load_state_dict(torch.load(args.load_model))
-        else:
-            model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
-        print('load parameters:', args.load_model)
+        if args.load_model == '':
+            args.load_model = f'checkpoint/{args.comment}/best_model.pt'
+        model.load_state_dict(torch.load(args.load_model))
+        print('load parameters: ', args.load_model)
 
         # setup validation dataset
         print('loading valid dataset', end='... ')
@@ -151,7 +150,7 @@ def main():
             dataloader=val_loader,
             device=args.device,
             logger=logger,
-            comment=args.comment
+            comment=args.comment+'_val'
         )
 
         # Write the results to Tensorboard
