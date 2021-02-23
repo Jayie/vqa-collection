@@ -43,10 +43,25 @@ def set_model(  model_type: str,
     predictor = None
     generator = None
 
-    if model_type == 'base':
-        encoder = models.encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
-    elif model_type == 'new':
-        encoder = models.encoder.NewEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+    # TODO: initialize modules according to model_type
+
+    # if model_type == 'base':
+    #     encoder = models.encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+    #     predictor = models.predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
+    
+    # elif model_type == 'new':
+    #     encoder = models.encoder.NewEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+    #     predictor = models.predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
+    
+    # elif model_type == 'vqa-e':
+    #     encoder = models.encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+    #     predictor = models.predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
+    #     generator = models.generator.CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, max_len, device, dropout, rnn_type)
+    
+    # elif model_type == 'q-cap':
+    #     encoder = models.encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+    #     # TODO: predictor
+    #     generator = models.generator.CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, max_len, device, dropout, rnn_type)
 
 
     return Wrapper(encoder, predictor, generator)
