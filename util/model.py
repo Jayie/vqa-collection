@@ -394,6 +394,7 @@ class QuestionRelevantCaptionsVQAModel(BottomUpVQAModel):
         c = self.c_net(c) # [batch, hidden_dim]
         joint = self.joint_c_vq(c.unsqueeze(1).repeat(1, vq.size(1), 1) * vq)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
+        
         vq = (joint * vq).sum(1) # [batch, hidden_dim]
         # To better incorporate the information from the captions into the VQA process, add the caption feature ot the attended image features,
         # and then element-wise multiply by the question features.
