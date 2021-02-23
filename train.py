@@ -7,13 +7,6 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
 
-def instance_bce_with_logits(predict, target):
-    """Loss function for VQA prediction"""
-    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
-    loss *= target.size(1)
-    return loss
-
-
 def compute_score(predict, target, device):
     """Compute score (according to the VQA evaluation metric)"""
     # get the most possible predicted results for each question
@@ -25,6 +18,13 @@ def compute_score(predict, target, device):
 
     scores = one_hots * target
     return scores
+
+
+def instance_bce_with_logits(predict, target):
+    """Loss function for VQA prediction"""
+    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+    loss *= target.size(1)
+    return loss
 
 
 def ce_for_language_model(predict, target):
@@ -122,7 +122,7 @@ def train(  model, lr,
         eval_score, bound = evaluate(model, val_loader, device)
         
         # save log
-        avg_loss /= len(train_loader.dataset)
+        avg_loss /= len(batches)
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
         writer.add_scalar('train/eval', eval_score, epoch)
@@ -152,6 +152,7 @@ def evaluate(model, dataloader, device, logger=None, comment=None):
     """
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
+    l = len(dataloader.dataset)
     
     if comment: writer = SummaryWriter(comment=comment)
     model = model.to(device)
@@ -165,9 +166,8 @@ def evaluate(model, dataloader, device, logger=None, comment=None):
             score += batch_score
             target_score += target.max(1)[0].sum().item()
 
-            if comment: writer.add_scalar(f'val/score', batch_score, i)
+            if comment: writer.add_scalar(f'val/score', score/l, i)
     
-    l = len(dataloader.dataset)
     score /= l
     target_score /= l
 
