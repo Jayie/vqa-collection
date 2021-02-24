@@ -112,7 +112,12 @@ def main():
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
 
         # if need to train continously, load the previous status of model
+        score = 0
         if args.start_epoch != 0:
+            model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
+            score, _ = evaluate(model, val_loader, args.device)
+            print(f'best score: {score:.4f}')
+
             model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}_final.pt'))
             print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}_final.pt')
 
@@ -132,6 +137,7 @@ def main():
             comment=args.comment+'_train',
             start_epoch=args.start_epoch,
             batches = args.batches,
+            best_score = score
         )
 
     # Evaluate: after training process or for mode 'val'

@@ -47,7 +47,7 @@ def set_optim(optim_type: str = 'adamax'):
 def train(  model, lr,
             train_loader, val_loader, num_epoches, save_path, device, logger,
             comment='', checkpoint=10000, max_norm=0.25,
-            start_epoch=0, batches=0,
+            start_epoch=0, batches=0, best_score=0,
             model_type='base', optim_type='adamax'
     ):
     """
@@ -64,15 +64,17 @@ def train(  model, lr,
         checkpoint: save model status for each N batches (default = 10000)
         max_norm: for clip_grad_norm (default = 0.25)
         batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
+        best_score: the best score (default = 0)
         model_type: the type of model (default = base, i.e. Bottom-Up and Top-Down model)
         optim_type: the type of optimizer (default = adamax)
     """
     # optimizer = torch.optim.Adamax(model.parameters())
     optimizer = set_optim(optim_type)(model.parameters(), lr=lr)
     writer = SummaryWriter(comment=comment)
-    best_score = 0
-    best_epoch = 0
     if batches == 0: batches = len(train_loader)
+    
+    best_score = best_score
+    best_epoch = 0
     
     # Parallelism
     if torch.cuda.device_count() > 1:
@@ -122,7 +124,7 @@ def train(  model, lr,
         eval_score, bound = evaluate(model, val_loader, device)
         
         # save log
-        avg_loss /= len(batches)
+        avg_loss /= batches
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
         writer.add_scalar('train/eval', eval_score, epoch)
