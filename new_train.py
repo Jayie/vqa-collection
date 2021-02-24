@@ -99,7 +99,7 @@ def train(  model, lr,
             # For captioning
             if caption:
                 predict = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
-                target = pack_padded_sequence(batch['c'].to(device), caption['decode_len', batch_firest=True]).data
+                target = pack_padded_sequence(batch['c'].to(device), caption['decode_len'], batch_first=True).data
                 loss_cap = ce_for_language_model(predict, target)
                 loss += loss_cap
 
@@ -168,7 +168,7 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     l = len(dataloader.dataset)
 
-    if comment: write = SummaryWriter(comment=comment)
+    if comment: writer = SummaryWriter(comment=comment)
     model = model.to(device)
     model.eval()
     start = time.time()
@@ -182,7 +182,7 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
             target_score += target.max(1)[0].sum().item()
 
             # write to Tensorboard
-            writer.add_scalar('val/vqa/score', score/l, i)
+            if comment: writer.add_scalar('val/vqa/score', score/l, i)
             
     score /= l
     target_score /= l
