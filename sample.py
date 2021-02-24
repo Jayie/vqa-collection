@@ -2,6 +2,8 @@ import json
 import torch
 from tqdm import tqdm
 
+# TODO: need to rewrite
+
 def sample_vqa(model, dataloader, ans_list, device, logger=None, sample=0):
     model = model.to(device)
     model.eval()
