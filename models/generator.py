@@ -57,9 +57,9 @@ class CaptionDecoder(nn.Module):
         self.h2_fcnet = FCNet(in_dim=hidden_dim, out_dim=ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def init_hidden(self, shape):
+    def init_hidden(self, batch):
         """Initialize hidden states."""
-        init = torch.zeros(shape).to(self.device)
+        init = torch.zeros((batch, self.hidden_dim)).to(self.device)
         if self.rnn_type == 'LSTM':
             return (init, init)
         else:
@@ -71,8 +71,50 @@ class CaptionDecoder(nn.Module):
         else:
             return h[:batch]
 
+    def decode(self, v, prev, h1, h2):
+        """Decode process
+        Input:
+            v: visual features[batch, num_objs, v_dim]
+            prev: previous decoded results (initial: <start>)
+            h1, h2: hidden states [batch, hidden_dim]
+        Output:
+            h: next word [batch, ntoken]
+            h1, h2: hidden states [batch, hidden_dim]
+            att: [batch, num_objs]
+        """
+        # Flatten image features
+        v_mean = v.mean(1).to(self.device) # [batch, v_dim]
+
+        # Encode captions
+        caption = self.embedding(prev) # [batch, embed_dim]
+
+        # First RNN: Word RNN
+        h = h2[0] if self.rnn_type == 'LSTM' else h2
+        h1 = self.word_rnn(
+            torch.cat([h, v_mean, caption ], dim=1) # x1: [batch, hidden_dim + v_dim + embed_dim]
+            , h1                                    # h1: [batch, hidden_dim]
+        )                                           # output: [batch, hidden_dim]
+        h = h1[0] if self.rnn_type == 'LSTM' else h1
+        h = self.h1_fcnet(h)
+
+        # Attention
+        att = self.attention(v, h) # [batch, num_objs, 1]
+        att_v = (att * v).sum(1) # [batch, v_dim]
+
+        # Second RNN: Language RNN
+        h2 = self.language_rnn(
+            torch.cat([att_v, h], dim=1)    # x2: [batch, v_dim + hidden_dim]
+            , h2                            # h2: [batch, hidden_dim]
+        )                                   # output: [batch, hidden_dim]
+        h = h2[0] if self.rnn_type == 'LSTM' else h2
+
+        # Predict the possible output word
+        h = self.softmax(self.h2_fcnet(h)) # [batch_t, ntoken]
+        return h, h1, h2, att.squeeze()
+
     def forward(self, v, caption, cap_len):
-        """Input:
+        """Training process
+        Input:
             v: visual features [batch, num_objs, v_dim]
             caption: ground truth captions [batch, max_len]
             cap_len: caption lengths for each batch [batch, 1]
@@ -100,8 +142,8 @@ class CaptionDecoder(nn.Module):
 
         # Initialize RNN states
         batch = caption.size(0)
-        h1 = self.init_hidden((batch, self.hidden_dim))
-        h2 = self.init_hidden((batch, self.hidden_dim))
+        total_h1 = self.init_hidden(batch)
+        total_h2 = self.init_hidden(batch)
 
         # Create tensor to hold the caption embedding after all time steps
         output = torch.zeros(batch, self.max_len, self.ntoken).to(self.device)
@@ -117,8 +159,8 @@ class CaptionDecoder(nn.Module):
             # Only generate captions which is longer than t (ignore <pad>)
             batch_t = sum([l > t for l in decode_len])
             batches.append(batch_t)
-            h1 = self.select_hidden(h1, batch_t) # h1: [batch_t, hidden_dim]
-            h2 = self.select_hidden(h2, batch_t) # h2: [batch_t, hidden_dim]
+            h1 = self.select_hidden(total_h1, batch_t) # h1: [batch_t, hidden_dim]
+            h2 = self.select_hidden(total_h2, batch_t) # h2: [batch_t, hidden_dim]
 
             # First RNN: Word RNN
             h = h2[0] if self.rnn_type == 'LSTM' else h2
