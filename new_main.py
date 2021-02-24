@@ -82,19 +82,19 @@ def main():
             f.write(f'{key}: {value}\n')
 
     # setup model
-    model = set_model(args.model)(
-                    ntoken=len(vocab_list),
-                    v_dim=args.v_dim,
-                    embed_dim=args.embed_dim,
-                    hidden_dim=args.hidden_dim,
-                    rnn_layer=args.rnn_layer,
-                    att_fc_dim=args.att_fc_dim,
-                    ans_dim=len(ans_list),
-                    cls_layer=args.cls_layer,
-                    c_len=args.c_len,
-                    dropout=args.dropout,
-                    device=args.device,
-                    rnn_type=args.rnn_type
+    model = set_model(  model_type=args.model,
+                        ntoken=len(vocab_list),
+                        v_dim=args.v_dim,
+                        embed_dim=args.embed_dim,
+                        hidden_dim=args.hidden_dim,
+                        rnn_layer=args.rnn_layer,
+                        att_fc_dim=args.att_fc_dim,
+                        ans_dim=len(ans_list),
+                        cls_layer=args.cls_layer,
+                        c_len=args.c_len,
+                        dropout=args.dropout,
+                        device=args.device,
+                        rnn_type=args.rnn_type
                 )
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)
