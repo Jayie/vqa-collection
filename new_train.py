@@ -77,10 +77,10 @@ def train(  model, lr,
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
             
-            predict, caption = model(batch)
+            predict, caption, _ = model(batch)
             loss = torch.tensor(0, dtype=torch.float).to(device)
             # For VQA
-            if predict:
+            if predict != None:
                 target = batch['a'].float().to(device)
                 loss_vqa = instance_bce_with_logits(predict, target)
                 loss += loss_vqa
@@ -97,7 +97,7 @@ def train(  model, lr,
                 del loss_vqa
 
             # For captioning
-            if caption:
+            if caption != None:
                 predict = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
                 target = pack_padded_sequence(batch['c'].to(device), caption['decode_len'], batch_first=True).data
                 loss_cap = ce_for_language_model(predict, target)
