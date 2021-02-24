@@ -91,6 +91,7 @@ class BaseEncoder(nn.Module):
         q = self.q_net(q) # [batch, hidden_dim]
         return v, q, v_att
 
+
 class NewEncoder(BaseEncoder):
     """
     This is for the winning entry of the 2017 VQA Challenge,
@@ -109,6 +110,7 @@ class NewEncoder(BaseEncoder):
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
+
 
 class CaptionEncoder(BaseEncoder):
     def __init__(self,
