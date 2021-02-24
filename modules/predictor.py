@@ -57,9 +57,9 @@ class PredictorwithCaption(nn.Module):
                     hidden_dim: int,
                     ans_dim: int,
                     device: str,
-                    neg_slope: float = 0.01,
                     cls_layer: int = 2,
                     dropout: float = 0.5,
+                    neg_slope: float = 0.01,
     ):
         super().__init__()
 
