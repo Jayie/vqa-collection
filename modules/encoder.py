@@ -72,6 +72,7 @@ class BaseEncoder(nn.Module):
         Output:
             v: [batch, num_objs, v_dim]
             q: [batch, hidden_dim]
+            att: [batch, num_objs, 1]
         """
         # Setup inputs
         v = batch['img'].to(self.device)
@@ -83,11 +84,12 @@ class BaseEncoder(nn.Module):
         
         # Get the attention of visual features based on question embedding
         v_att = self.attention(v, q) # [batch, num_objs, 1]
+
         # Get question-attended visual feature vq
         v = v_att * v # [batch, num_objs, v_dim]
 
         q = self.q_net(q) # [batch, hidden_dim]
-        return v, q
+        return v, q, v_att
 
 class NewEncoder(BaseEncoder):
     """
@@ -148,8 +150,8 @@ class CaptionEncoder(BaseEncoder):
             q: [batch, q_len]
         Output:
             v: [batch, num_objs, v_dim]
-            q: [batch, hidden_dim]
-            c: [batch, hidden_dim]
+            q, c: [batch, hidden_dim]
+            v_att: [batch, num_objs, 1]
         """
         # Setup inputs
         v = batch['img'].to(self.device)
@@ -173,4 +175,4 @@ class CaptionEncoder(BaseEncoder):
         c, _ = self.caption_embedding(vq, q, c, cap_len) # [batch, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
 
-        return v, (q, c)
+        return v, (q, c), v_att
