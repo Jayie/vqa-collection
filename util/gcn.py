@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-from util.modules import DotProduct
+from .modules import DotProduct
 
 class BaseGraphConv(nn.Module):
     """

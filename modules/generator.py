@@ -5,8 +5,8 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.weight_norm import weight_norm
 
-from util.modules import FCNet
-from util.attention import ConcatAttention, MultiplyAttention
+from .modules import FCNet
+from .attention import ConcatAttention, MultiplyAttention
 
 class CaptionDecoder(nn.Module):
     """

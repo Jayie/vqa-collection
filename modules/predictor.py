@@ -3,8 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from util.modules import FCNet, CaptionEmbedding, LReLUNet
-from util.attention import ConcatAttention
+from .modules import FCNet, CaptionEmbedding, LReLUNet
+from .attention import ConcatAttention
 
 
 class BasePredictor(nn.Module):

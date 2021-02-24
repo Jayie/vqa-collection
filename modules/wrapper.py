@@ -2,6 +2,16 @@ import torch.nn as nn
 import modules.encoder as encoder
 import modules.predictor as predictor
 from modules.generator import CaptionDecoder
+from modules.modules import PretrainedWordEmbedding
+
+def use_pretrained_embedding(model, vocab_path: str, device: str):
+    """ Replace the embedding layer in the model with the pre-trained embedding layer.
+    Input:
+        vocab_path: path for loading pre-trained word vectors
+        device: device
+    """
+    model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
+    return model
 
 class Wrapper(nn.Module):
     def __init__(self, device: str, encoder=None, predictor=None, generator=None):

@@ -3,8 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from util.modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
-from util.attention import ConcatAttention, MultiplyAttention
+from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
+from .attention import ConcatAttention, MultiplyAttention
 
 
 # This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
