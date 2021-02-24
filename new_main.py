@@ -125,7 +125,6 @@ def main():
         train(
             model=model,
             lr=args.lr,
-            model_type=args.model,
             train_loader=train_loader,
             val_loader=val_loader,
             num_epoches=args.epoches,
