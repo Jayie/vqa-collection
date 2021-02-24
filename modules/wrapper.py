@@ -24,7 +24,7 @@ class Wrapper(nn.Module):
     def forward(self, batch):
         # If encoder exists: get visual and text embeddings
         # Else: get original features
-        v, w, _ = self.encoder(batch) if self.encoder!=None else (batch['img'].to(self.device), None, None)
+        v, w, att = self.encoder(batch) if self.encoder!=None else (batch['img'].to(self.device), None, None)
 
         # If VQA module exists: get prediction
         predict = self.predictor(v, w) if self.predictor!=None else None
@@ -42,7 +42,7 @@ class Wrapper(nn.Module):
             del c
             del cap_len
         
-        return predict, caption
+        return predict, caption, att
 
 def set_model(  model_type: str,
                 ntoken: int = 0,
