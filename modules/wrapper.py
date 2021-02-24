@@ -71,7 +71,7 @@ def set_model(  model_type: str,
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
 
     elif model_type == 'vqa-e':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, c_len, device, dropout, rnn_type)
+        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
     
