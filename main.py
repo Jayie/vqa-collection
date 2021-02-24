@@ -75,7 +75,7 @@ def main():
     ans_list = get_vocab_list(args.ans_path)
     # save the settings
     save_path = os.path.join('checkpoint', args.comment)
-    with open(os.path.join(save_path, 'param.pkl', 'wb')) as f:
+    with open(os.path.join(save_path, 'param.pkl'), 'wb') as f:
         pickle.dump(args.__dict__, f)
     with open(os.path.join(save_path, 'param.txt'), 'w') as f:
         for key, value in args.__dict__.items():
