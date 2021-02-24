@@ -70,6 +70,8 @@ def train(  model, lr,
     best_score = best_score
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
+
+    model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0
