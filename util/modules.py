@@ -75,6 +75,25 @@ class LReLUNet(nn.Module):
     def forward(self, x):
         return self.main(x)
 
+
+class DotProduct(nn.Module):
+    def __init__(self, a_dim, b_dim, out_dim):
+        super().__init__()
+        self.wa = nn.Linear(a_dim, out_dim)
+        self.wb = nn.Linear(b_dim, out_dim)
+
+    def forward(self, a, b):
+        """
+        a: [batch, a_len, a_dim]
+        b: [batch, b_len, b_dim]
+        output: [batch, a_len, b_len]
+        """
+        a = self.wa(a)
+        b = self.wb(b)
+        b = torch.transpose(b, 1, 2)
+        return torch.bmm(a, b)
+
+
 class SentenceEmbedding(nn.Module):
     """
     Sentence embedding module.

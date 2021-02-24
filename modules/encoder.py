@@ -61,6 +61,9 @@ class BaseEncoder(nn.Module):
         # Attention layer for image features based on questions
         self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
 
+        # Non-linear layers for image features
+        self.q_net = FCNet(hidden_dim, hidden_dim)
+
     def forward(self, batch):
         """
         Input:
@@ -82,6 +85,8 @@ class BaseEncoder(nn.Module):
         v_att = self.attention(v, q) # [batch, num_objs, 1]
         # Get question-attended visual feature vq
         v = v_att * v # [batch, num_objs, v_dim]
+
+        q = self.q_net(q) # [batch, hidden_dim]
         return v, q
 
 class NewEncoder(BaseEncoder):
@@ -103,3 +108,69 @@ class NewEncoder(BaseEncoder):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
 
+class CaptionEncoder(BaseEncoder):
+    def __init__(self,
+                 ntoken: int,
+                 embed_dim: int,
+                 hidden_dim: int,
+                 rnn_layer: int,
+                 v_dim: int,
+                 att_fc_dim: int,
+                 c_len: int,
+                 device: str,
+                 dropout: float = 0.5,
+                 neg_slope: float = 0.01,
+                 rnn_type: str = 'GRU',
+    ):
+        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        
+        self.v_net = LReLUNet(v_dim, hidden_dim, neg_slope)
+        self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
+
+        # Caption embedding module
+        self.caption_embedding = CaptionEmbedding(
+            v_dim=hidden_dim,
+            q_dim=hidden_dim,
+            c_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout
+        )
+
+        # Attention layer for image features based on caption embedding
+        self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
+
+    def forward(self, batch):
+        """
+        Input:
+            v: [batch, num_objs, v_dim]
+            q: [batch, q_len]
+        Output:
+            v: [batch, num_objs, v_dim]
+            q: [batch, hidden_dim]
+            c: [batch, hidden_dim]
+        """
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        c = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        
+        # Embed words and take the last output of RNN layer as the question embedding
+        q = self.embedding(q) # [batch, q_len, q_embed_dim]
+        q = self.q_rnn(q) # [batch, hidden_dim]
+        
+        # Get the attention of visual features based on question embedding
+        v_att = self.attention(v, q) # [batch, num_objs, 1]
+        # Get question-attended visual feature vq
+        v = v_att * v # [batch, num_objs, v_dim]
+
+        vq = self.v_net(v.sum(1)) # [batch, hidden_dim]
+        q = self.q_net(q) # [batch, hidden_dim]
+
+        c = self.embedding(c) # [batch, c_len, embed_dim]
+        c, _ = self.caption_embedding(vq, q, c, cap_len) # [batch, hidden_dim]
+        c = self.c_net(c) # [batch, hidden_dim]
+
+        return v, (q, c)

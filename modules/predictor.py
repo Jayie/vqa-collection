@@ -21,9 +21,6 @@ class BasePredictor(nn.Module):
     ):
         super().__init__()
 
-        # Non-linear layers for image features
-        self.q_net = FCNet(hidden_dim, hidden_dim)
-
         # Non-linear layers for question
         self.v_net = FCNet(v_dim, hidden_dim)
 
@@ -43,7 +40,6 @@ class BasePredictor(nn.Module):
         v = v.sum(1) # [batch, v_dim]
 
         # FC layers
-        q = self.q_net(q) # [batch, hidden_dim]
         v = self.v_net(v) # [batch, hidden_dim]
         
         # Fuse visual and question features (multiplication here)
@@ -66,8 +62,11 @@ class PredictorwithCaption(nn.Module):
                     dropout: float = 0.5,
     ):
         super().__init__()
-        
-        # TODO
+
+        # For caption-attended visual features
+        self.vq_net = LReLUNet(v_dim, hidden_dim, neg_slope)
+        self.joint_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
+        self.vqc_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
 
         # Classifier
         self.classifier = nn.Sequential(
@@ -77,13 +76,24 @@ class PredictorwithCaption(nn.Module):
 
     def forward(self, v, w):
         """Input:
-            v: [batch, num_objs, hidden_dim]
-            w: (q, c)
+            v: [batch, num_objs, v_dim]
+            w:
                 q: [batch, hidden_dim]
+                c: [batch, hidden_dim]
         """
         q, c = w
         del w
 
-        # TODO
+        # Produce caption-attended visual features
+        v = self.vq_net(v) # [batch, num_objs, hidden_dim]
+        joint = self.joint_net(c.unsqueeze(1).repeat(1, v.size(1), 1) * v)
+        joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
+        v = (joint * v).sum(1) # [batch, hidden_dim]
 
-        return
+        # To better incorporate the information from the captions into the VQA process,
+        # add the caption feature ot the attended image features,
+        # and then element-wise multiply by the question features.
+        v = self.vqc_net(v) # [batch, hidden_dim]
+        joint = q * (v + c) # [batch, hidden_dim]
+
+        return self.classifier(joint) # [batch, ans_dim]

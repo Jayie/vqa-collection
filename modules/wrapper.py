@@ -1,7 +1,5 @@
 import torch.nn as nn
-import models
-
-import models
+import modules
 
 class Wrapper(nn.Module):
     def __init__(self, encoder=None, predictor=None, generator=None):

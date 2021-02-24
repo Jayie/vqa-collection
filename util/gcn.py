@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
+from util.modules import DotProduct
+
 class BaseGraphConv(nn.Module):
     """
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
@@ -63,24 +65,6 @@ class DirectedGraphConv(BaseGraphConv):
         
         # Add bias according to labels
         return output + self.bias[graph.numpy(),:].sum(2)
-
-
-class DotProduct(nn.Module):
-    def __init__(self, a_dim, b_dim, out_dim):
-        super().__init__()
-        self.wa = nn.Linear(a_dim, out_dim)
-        self.wb = nn.Linear(b_dim, out_dim)
-
-    def forward(self, a, b):
-        """
-        a: [batch, a_len, a_dim]
-        b: [batch, b_len, b_dim]
-        output: [batch, a_len, b_len]
-        """
-        a = self.wa(a)
-        b = self.wb(b)
-        b = torch.transpose(b, 1, 2)
-        return torch.bmm(a, b)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):

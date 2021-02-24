@@ -77,9 +77,9 @@ def main():
     save_path = os.path.join('checkpoint', args.comment)
     with open(os.path.join(save_path, 'param.pkl', 'wb')) as f:
         pickle.dump(args.__dict__, f)
-    # with open(os.path.join(save_path, 'param.txt'), 'w') as f:
-    #     for key, value in args.__dict__.items():
-    #         f.write(f'{key}: {value}\n')
+    with open(os.path.join(save_path, 'param.txt'), 'w') as f:
+        for key, value in args.__dict__.items():
+            f.write(f'{key}: {value}\n')
 
     # setup model
     model = set_model(args.model)(
