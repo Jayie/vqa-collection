@@ -46,6 +46,7 @@ def train(  model, lr,
             checkpoint: int = 10000,
             start_epoch: int = 0, batches: int = 0,
             max_norm: float = 0.25,
+            best_score: float = 0,
 ): 
     """
     Train process.
@@ -62,10 +63,11 @@ def train(  model, lr,
         checkpoint: save model status for each N batches (default = 10000)
         batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
         max_norm: for clip_grad_norm (default = 0.25)
+        best_score: if load model, get the best score (default = 0)
     """
     writer = SummaryWriter(comment=comment)
     optimizer = torch.optim.Adamax(model.parameters())
-    best_score = 0
+    best_score = best_score
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
     for epoch in range(start_epoch, num_epoches):
