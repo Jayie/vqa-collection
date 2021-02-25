@@ -189,8 +189,8 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
-            predict, _ = model(batch)
-            loss = instance_bce_with_logits(predict, target)
+            predict, _, _ = model(batch)
+            # loss = instance_bce_with_logits(predict, target)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
             target_score += target.max(1)[0].sum().item()
