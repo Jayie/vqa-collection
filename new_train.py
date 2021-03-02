@@ -149,7 +149,7 @@ def train(  model, lr,
             eval_score, bound = evaluate(model, val_loader, device)
 
             # save log
-            avg_loss /= len(batches)
+            avg_loss /= batches
             t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
             logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
             writer.add_scalar('train/eval', eval_score, epoch)
