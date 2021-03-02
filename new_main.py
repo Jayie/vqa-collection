@@ -99,8 +99,6 @@ def main():
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)
     print('model ready.')
-    # print(model)
-    # return
 
     if args.mode == 'train':
         # setup training and validation datasets

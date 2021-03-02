@@ -145,9 +145,8 @@ def main():
         # load model: if not specified, load the best model
         if args.load_model == '':
             args.load_model = f'checkpoint/{args.comment}/best_model.pt'
-        load = torch.load(args.load_model)
+        model.load_state_dict(torch.load(args.load_model))
         print('load parameters: ', args.load_model)
-        model.load_state_dict(load)
 
         # setup validation dataset
         print('loading valid dataset', end='... ')
