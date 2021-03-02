@@ -41,7 +41,7 @@ PyTorch reimplementation of VQA models, including:
 
 | Exp | Model | Yes/No | Number | Other | All |
 | - | :-: | :-: | :-: | :-: | :-: |
-| exp1 | base | 77.25 | 39.08 | 43.96 | 55.83 % |
+| exp1 | base | 77.25 | 39.08 | 43.96 | 55.83 |
 | exp2 | new  | 78.14 | 40.66 | 44.89 | 56.83 |
 
 
