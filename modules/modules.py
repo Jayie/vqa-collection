@@ -9,6 +9,8 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.nn.utils.weight_norm import weight_norm
 
+from .gcn import get_graph_conv
+
 class FCNet(nn.Module):
     """
     Non-linear fully-connected network.
@@ -372,12 +374,23 @@ class RelationEncoder(nn.Module):
     def __init__( self,
                   in_dim: int,
                   out_dim: int,
-                  relation_num: int,
+                  num_labels: int,
                   conv_layer: int = 1,
+                  conv_type: str = 'corr'
                 ):
         super().__init__()
-        # TODO
+        GraphConv = get_graph_conv(conv_type)
+        
+        self.gcn = [GraphConv(in_dim, out_dim, num_labels)]
+        for _ in range(conv_layer-1):
+            self.gcn.append(GraphConv(out_dim, out_dim, num_labels))
 
-    def forward(self, x):
-        # TODO
-        return
+    def forward(self, feature, graph):
+        """Input:
+            feature: [batch, num_objs, in_dim]
+            graph: [batch, num_objs, num_objs]
+        """
+        for i in range(len(self.gcn)):
+            feature = self.gcn[i](feature, graph)
+        
+        return feature

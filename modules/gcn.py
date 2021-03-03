@@ -6,6 +6,13 @@ from torch.nn.parameter import Parameter
 
 from .modules import DotProduct
 
+def get_graph_conv(conv_type):
+    return {
+        'base': BaseGraphConv,
+        'direct': DirectedGraphConv,
+        'corr': CorrelatedGraphConv
+    }[conv_type]
+
 class BaseGraphConv(nn.Module):
     """
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
