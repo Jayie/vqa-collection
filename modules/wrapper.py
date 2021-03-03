@@ -63,8 +63,6 @@ def set_model(  model_type: str,
     set_predictor = None
     set_generator = None
 
-    # TODO: initialize modules according to model_type
-
     if model_type == 'base':
         set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)

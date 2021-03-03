@@ -47,7 +47,6 @@ def train(  model, lr,
             start_epoch: int = 0, batches: int = 0,
             max_norm: float = 0.25,
             best_score: float = 0,
-            
 ): 
     """
     Train process.
@@ -126,6 +125,15 @@ def train(  model, lr,
                 del target
                 del loss_cap
             
+
+            ##############################################################################################################################
+            # TODO: Back prop. strategy for 'Generating Question Relevant Captions to Aid Visual Question Answering'
+            #       Suppose that datas in each batch share the same Q-A pair with different caption,
+            #       our goal is to select the most relevant one (which means that the gradient of Q-A pair and the caption are similar)
+            #
+            # TODO: Reconstruct dataset and dataloader for this model
+            ##############################################################################################################################
+
             # Back prop.
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)

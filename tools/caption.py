@@ -10,7 +10,7 @@ def decode_with_beam_search(
     c_len: int = 20,
     k: int = 3
 ):
-    """Generate captions with Beam Search.
+    """Generate captions with Beam Search. (Reference: https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning)
     Input:
         encoder: encoder model
         decoder: decoder model
@@ -19,6 +19,9 @@ def decode_with_beam_search(
         device: device
         c_len: max length of captions
         k: select top-k candidates (default = 3)
+    Output:
+        generated_caption
+        alpha
     """
     
     # Get visual features
