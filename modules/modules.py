@@ -366,7 +366,7 @@ class CaptionEmbedding(nn.Module):
         return output[restore_id,:], alphas[restore_id,:,:]
 
 
-class RelationEncoder(nn.Module):
+class GCN(nn.Module):
     """
     Relation Encoder mentioned in 'Exploring Visual Relationship for Image Captioning'
     This GCN-based module learns visual features considering relationships.

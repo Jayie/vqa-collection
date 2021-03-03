@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
+from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet, GCN
 from .attention import ConcatAttention, MultiplyAttention
 
 
@@ -110,6 +110,60 @@ class NewEncoder(BaseEncoder):
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
+
+
+class RelationEncoder(BaseEncoder):
+    """
+    This is for 'Relation-Aware Graph Network for Visual Question Answering'
+    """
+    def __init__(self,
+                 ntoken: int,
+                 embed_dim: int,
+                 hidden_dim: int,
+                 rnn_layer: int,
+                 v_dim: int,
+                 att_fc_dim: int,
+                 device: str,
+                 dropout: float = 0.5,
+                 rnn_type: str = 'GRU',
+                 conv_layer: int = 1,
+                 conv_type: str = 'corr',
+    ):
+        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        self.spatial_encoder = GCN(hidden_dim, hidden_dim, 11, conv_layer, conv_type)
+        
+    def forward(self, batch):
+        """
+        Input:
+            v: [batch, num_objs, v_dim]
+            q: [batch, q_len]
+            graph: [batch, num_objs, num_objs]
+        Output:
+            v: [batch, num_objs, v_dim]
+            q: [batch, hidden_dim]
+            att: [batch, num_objs, 1]
+        """
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        graph = batch['graph'].to(self.device)
+        
+        # Embed words and take the last output of RNN layer as the question embedding
+        q = self.embedding(q) # [batch, q_len, q_embed_dim]
+        q = self.q_rnn(q) # [batch, hidden_dim]
+        
+        # Get the attention of visual features based on question embedding
+        v_att = self.attention(v, q) # [batch, num_objs, 1]
+
+        # Get question-attended visual feature vq
+        v = v_att * v # [batch, num_objs, v_dim]
+
+        q = self.q_net(q) # [batch, hidden_dim]
+
+        # Get relation-aware visual feature
+        v = self.spatial_encoder(v, graph)
+
+        return v, q, v_att
 
 
 class CaptionEncoder(BaseEncoder):
