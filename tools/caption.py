@@ -97,5 +97,6 @@ def decode_with_beam_search(
         if step > c_len: break
         step += 1
 
+    # Return the sequence with the highest score
     i = complete_scores.index(max(complete_scores))
     return complete_seqs[i], complete_alphas[i]
