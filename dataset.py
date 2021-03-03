@@ -8,11 +8,10 @@ from torch.utils.data import Dataset
 from util.relation import relation_graph
 
 #################################################################
-# TODO: Reconstruct dataset to improve efficiency.
-#       Note that the preprocessing may also need to be rewrited
+# TODO: Rewrite preprocessing.py
 #################################################################
 
-def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False):
+def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False, graph_path=None):
     dataset_types = {
         'vqa':VQADataset,
         'vqac': VQACaptionDataset
@@ -25,11 +24,12 @@ def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='
 
     load_dataset = os.path.join(load_dataset, dataset_name)
     feature_path = os.path.join(feature_path, dataset_name)
-    return dataset_types[dataset_type](load_dataset, feature_path, vocab_list, ans_list, ans_type)
+    graph_path = os.path.join(graph_path, dataset_name) if graph_path != None else None
+    return dataset_types[dataset_type](load_dataset, feature_path, vocab_list, ans_list, ans_type, graph_path)
 
 
 class VQADataset(Dataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', get_graph=False):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=None):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -44,7 +44,7 @@ class VQADataset(Dataset):
         self.vocab_list = vocab_list
         self.ans_list = ans_list
         self.feature_path = feature_path
-        self.get_graph = get_graph
+        self.graph_path = graph_path
         t = time.time() - t
         print(f'ready ({t:.2f} sec).')
     
@@ -80,12 +80,14 @@ class VQADataset(Dataset):
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
-        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h'])
+        if self.graph_path != None:
+            graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
+            output['graph'] = graph['graph']
         return output
 
 
 class VQACaptionDataset(VQADataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', get_graph=False):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=None):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -101,7 +103,7 @@ class VQACaptionDataset(VQADataset):
         self.vocab_list = vocab_list
         self.ans_list = ans_list
         self.feature_path = feature_path
-        self.get_graph = get_graph
+        self.graph_path = graph_path
         t = time.time() - t
         print(f'dataset ready ({t:.2f} sec).')
             
@@ -116,5 +118,7 @@ class VQACaptionDataset(VQADataset):
             'a': np.array(self.load_answer(index)),
         }
 
-        if self.get_graph: output['graph'] = relation_graph(img['bbox'], img['image_w'], img['image_h'])
+        if self.graph_path != None:
+            graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
+            output['graph'] = graph['graph']
         return output
