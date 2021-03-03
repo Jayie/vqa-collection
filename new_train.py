@@ -140,7 +140,7 @@ def train(  model, lr,
             optimizer.step()
             optimizer.zero_grad()
 
-            avg_loss = loss.item()
+            avg_loss += loss.item()
 
             if i % checkpoint == 0 and i != 0:
                 torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
