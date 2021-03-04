@@ -3,7 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet, GCN
+from .gcn import GCN
+from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from .attention import ConcatAttention, MultiplyAttention
 
 
@@ -130,7 +131,16 @@ class RelationEncoder(BaseEncoder):
                  conv_type: str = 'corr',
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
-        self.spatial_encoder = GCN(hidden_dim, hidden_dim, 11, conv_layer, conv_type)
+
+        # Prepare GCN
+        self.spatial_encoder = GCN(
+            in_dim=v_dim,
+            out_dim=v_dim,
+            num_labels=12,
+            device=device,
+            conv_layer=conv_layer,
+            conv_type=conv_type
+        )
         
     def forward(self, batch):
         """
@@ -146,7 +156,7 @@ class RelationEncoder(BaseEncoder):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        graph = batch['graph'].to(self.device)
+        graph = batch['graph'].float().to(self.device)
         
         # Embed words and take the last output of RNN layer as the question embedding
         q = self.embedding(q) # [batch, q_len, q_embed_dim]
@@ -161,7 +171,7 @@ class RelationEncoder(BaseEncoder):
         q = self.q_net(q) # [batch, hidden_dim]
 
         # Get relation-aware visual feature
-        v = self.spatial_encoder(v, graph)
+        v = self.spatial_encoder(v, graph) # [batch, num_objs, v_dim]
 
         return v, q, v_att
 

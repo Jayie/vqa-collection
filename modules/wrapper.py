@@ -58,7 +58,8 @@ def set_model(  model_type: str,
                 dropout: float = 0.5,
                 neg_slope: float = 0.5,
                 rnn_type: str = 'GRU',
-                conv_type: str = 'corr'
+                conv_layer: int = 2,
+                conv_type: str = 'corr',
 ):
     set_encoder = None
     set_predictor = None
@@ -87,7 +88,7 @@ def set_model(  model_type: str,
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
     
     elif model_type == 'relation':
-        set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, conv_type)
+        set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, conv_layer, conv_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
 
     return Wrapper(device, set_encoder, set_predictor, set_generator)

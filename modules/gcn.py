@@ -18,7 +18,7 @@ class BaseGraphConv(nn.Module):
     Simple GCN layer, similar to https://arxiv.org/abs/1609.02907
     reference: https://github.com/tkipf/pygcn
     """
-    def __init__(self, in_dim, out_dim, bias=True):
+    def __init__(self, in_dim, out_dim, num_labels, bias=True):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -53,7 +53,7 @@ class BaseGraphConv(nn.Module):
 
 class DirectedGraphConv(BaseGraphConv):
     def __init__(self, in_dim, out_dim, num_labels):
-        super().__init__(in_dim, out_dim, True)
+        super().__init__(in_dim, out_dim, num_labels, True)
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
@@ -71,7 +71,7 @@ class DirectedGraphConv(BaseGraphConv):
         output = torch.bmm(adj, output)
         
         # Add bias according to labels
-        return output + self.bias[graph.numpy(),:].sum(2)
+        return output + self.bias[graph.cpu().numpy(),:].sum(2)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
@@ -103,4 +103,35 @@ class CorrelatedGraphConv(DirectedGraphConv):
         output = torch.bmm(alpha, output)
 
         # Add bias according to labels
-        return output + self.bias[graph.numpy(),:].sum(2)
+        return output + self.bias[graph.cpu().numpy(),:].sum(2)
+
+
+class GCN(nn.Module):
+    """
+    Relation Encoder mentioned in 'Exploring Visual Relationship for Image Captioning'
+    This GCN-based module learns visual features considering relationships.
+    """
+    def __init__( self,
+                  in_dim: int,
+                  out_dim: int,
+                  num_labels: int,
+                  device: str,
+                  conv_layer: int = 1,
+                  conv_type: str = 'corr'
+                ):
+        super().__init__()
+        GraphConv = get_graph_conv(conv_type)
+        
+        self.gcn = [GraphConv(in_dim, out_dim, num_labels).to(device)]
+        for _ in range(conv_layer-1):
+            self.gcn.append(GraphConv(out_dim, out_dim, num_labels).to(device))
+
+    def forward(self, feature, graph):
+        """Input:
+            feature: [batch, num_objs, in_dim]
+            graph: [batch, num_objs, num_objs]
+        """
+        for i in range(len(self.gcn)):
+            feature = self.gcn[i](feature, graph)
+        
+        return feature
