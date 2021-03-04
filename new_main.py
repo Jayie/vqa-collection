@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--ans_path',type=str, default='../data/answer_candidate.txt', help='path for answer candidate list')
     parser.add_argument('--load_path', type=str, default='../annot', help='path for loading dataset')
     parser.add_argument('--feature_path', type=str, default='../../COCO_feature_36', help='path for COCO image features')
+    parser.add_argument('--graph_path', type=str, default='../../COCO_graph_36', help='path for COCO spatial relation graphs')
     parser.add_argument('--seed', type=int, default=10, help='random seed')
     parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
     parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
@@ -44,6 +45,10 @@ def parse_args():
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
+
+    # relation encoder settings
+    parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
+    parser.add_argument('--conv_type', type=str, default='corr', help='GCN type (base/direct/corr, default = corr)')
 
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
     parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
@@ -94,7 +99,9 @@ def main():
                         c_len=args.c_len,
                         dropout=args.dropout,
                         device=args.device,
-                        rnn_type=args.rnn_type
+                        rnn_type=args.rnn_type,
+                        conv_layer=args.conv_layer,
+                        conv_type=args.conv_type,
                 )
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)
@@ -103,7 +110,15 @@ def main():
     if args.mode == 'train':
         # setup training and validation datasets
         print('loading train dataset', end='... ')
-        train_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_train=True, dataset_type='vqac')
+        train_data = set_dataset(
+            load_dataset=args.load_path,
+            feature_path=args.feature_path,
+            graph_path=args.graph_path,
+            vocab_list=vocab_list,
+            ans_list=ans_list,
+            is_train=True,
+            dataset_type='vqac'
+        )
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
         print('loading valid dataset', end='... ')
         val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')

@@ -11,7 +11,7 @@ from util.relation import relation_graph
 # TODO: Rewrite preprocessing.py
 #################################################################
 
-def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False, graph_path=None):
+def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False, graph_path=''):
     dataset_types = {
         'vqa':VQADataset,
         'vqac': VQACaptionDataset
@@ -24,12 +24,12 @@ def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='
 
     load_dataset = os.path.join(load_dataset, dataset_name)
     feature_path = os.path.join(feature_path, dataset_name)
-    graph_path = os.path.join(graph_path, dataset_name) if graph_path != None else None
+    graph_path = os.path.join(graph_path, dataset_name) if graph_path != '' else ''
     return dataset_types[dataset_type](load_dataset, feature_path, vocab_list, ans_list, ans_type, graph_path)
 
 
 class VQADataset(Dataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=None):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=''):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -80,14 +80,14 @@ class VQADataset(Dataset):
             'q': np.array(self.questions[index]['q']),
             'a': np.array(self.load_answer(index)),
         }
-        if self.graph_path != None:
+        if self.graph_path != '':
             graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
             output['graph'] = graph['graph']
         return output
 
 
 class VQACaptionDataset(VQADataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=None):
+    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=''):
         t = time.time()
         print('loading dataset...', end=' ')
 
@@ -118,7 +118,7 @@ class VQACaptionDataset(VQADataset):
             'a': np.array(self.load_answer(index)),
         }
 
-        if self.graph_path != None:
+        if self.graph_path != '':
             graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
             output['graph'] = graph['graph']
         return output

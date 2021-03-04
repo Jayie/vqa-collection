@@ -87,7 +87,7 @@ def set_model(  model_type: str,
         set_predictor = predictor.PredictorwithCaption(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout, neg_slope)
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
     
-    elif model_type == 'relation':
+    elif model_type == 'conv':
         set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, conv_layer, conv_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
 

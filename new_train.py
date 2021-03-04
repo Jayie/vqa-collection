@@ -96,8 +96,8 @@ def train(  model, lr,
 
                 # write to Tensorboard
                 score = compute_score(predict, target, device).sum().item()
-                writer.add_scalar('train/vqa/loss', loss_vqa.item(), epoch * batches + i)
-                writer.add_scalar('train/vqa/score', score, epoch * batches + i)
+                writer.add_scalar('train/loss', loss_vqa.item(), epoch * batches + i)
+                writer.add_scalar('train/score', score, epoch * batches + i)
                 
                 # Delete used objects
                 predict.detach()
