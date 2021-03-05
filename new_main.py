@@ -121,7 +121,15 @@ def main():
         )
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
         print('loading valid dataset', end='... ')
-        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
+        val_data = set_dataset(
+            load_dataset=args.load_path,
+            feature_path=args.feature_path,
+            graph_path=args.graph_path,
+            vocab_list=vocab_list,
+            ans_list=ans_list,
+            is_val=True,
+            dataset_type='vqac'
+        )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
 
         # if need to train continously, load the previous status of model
