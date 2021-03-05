@@ -102,6 +102,12 @@ class CorrelatedGraphConv(DirectedGraphConv):
         # Mutiply
         output = torch.bmm(alpha, output)
 
+        #############################################################################################
+        # TODO
+        # 1. Fix problems: the graph didn't consider the original features
+        # 2. Feature map: add a function to compute alpha for feature visualization and further usage
+        #############################################################################################
+
         # Add bias according to labels
         return output + self.bias[graph.cpu().numpy(),:].sum(2)
 
