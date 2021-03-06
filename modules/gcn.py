@@ -71,7 +71,8 @@ class DirectedGraphConv(BaseGraphConv):
         output = torch.bmm(adj, output)
         
         # Add bias according to labels
-        return output + self.bias[graph.cpu().numpy(),:].sum(2)
+        # Need to add the original feature since the diagonal of our relation graph is zero
+        return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
@@ -79,6 +80,17 @@ class CorrelatedGraphConv(DirectedGraphConv):
         super().__init__(in_dim, out_dim, num_labels)
         self.dot_product = DotProduct(in_dim, in_dim, out_dim)
         self.softmax = nn.Softmax(dim=1)
+
+    def relation_alpha(self, feature, adj):
+        # Compute correlations between vi and vj for all vi, vj in input
+        alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
+        # alpha = max(0, alpha)
+        alpha[alpha<0] = 0
+        # Only keep the correlation score of neighbors
+        alpha = torch.bmm(adj, alpha)
+        # Normalize
+        alpha = self.softmax(alpha)
+        return alpha
 
     def forward(self, feature, graph):
         """Input:
@@ -91,25 +103,14 @@ class CorrelatedGraphConv(DirectedGraphConv):
         output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
         output = torch.bmm(adj, output)
 
-        # Compute correlations between vi and vj for all vi, vj in input
-        alpha = self.dot_product(feature, feature) # [batch, num_objs, num_objs]
-        # alpha = max(0, alpha)
-        alpha[alpha<0] = 0
-        # Only keep the correlation score of neighbors
-        alpha = torch.bmm(adj, alpha)
-        # Normalize
-        alpha = self.softmax(alpha)
+        # Compute correlations
+        alpha = self.relation_alpha(feature, adj)
         # Mutiply
         output = torch.bmm(alpha, output)
 
-        #############################################################################################
-        # TODO
-        # 1. Fix problems: the graph didn't consider the original features
-        # 2. Feature map: add a function to compute alpha for feature visualization and further usage
-        #############################################################################################
-
         # Add bias according to labels
-        return output + self.bias[graph.cpu().numpy(),:].sum(2)
+        # Need to add the original feature since the diagonal of our relation graph is zero
+        return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
 
 
 class GCN(nn.Module):
