@@ -135,6 +135,12 @@ class GCN(nn.Module):
         for _ in range(conv_layer-1):
             self.gcn.append(GraphConv(out_dim, out_dim, num_labels).to(device))
 
+    def __repr__(self):
+        output = []
+        for layer in self.gcn:
+            output.append(layer.__repr__)
+        return output
+
     def forward(self, feature, graph, get_alpha):
         """Input:
             feature: [batch, num_objs, in_dim]
