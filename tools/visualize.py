@@ -50,13 +50,15 @@ def show_top_k_regions(model, dataset, ans_list, sample=0, img_path='../COCO', k
     index = index.tolist()
 
     # Show the regions
-    for i in range(k):
-        b = bbox[index[i]]
+    for i in range(1,k+1):
+        b = bbox[index[-i]]
         region = img.crop([b[0], b[1], b[2], b[3]])
+        if i != k:
+            region.putalpha(128)
         output.paste(region, (int(b[0]), int(b[1])))
 
     # Draw rectangles and texts
-    for i in range(k):
+    for i in range(1,k):
         b = bbox[index[i]]
         draw.rectangle([(b[0], b[1]), (b[2], b[3])], fill=None, outline='red', width=2)
         text = f'{value[i]:.2f}'
