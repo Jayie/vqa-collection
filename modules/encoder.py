@@ -142,7 +142,7 @@ class RelationEncoder(BaseEncoder):
             conv_type=conv_type
         )
         
-    def forward(self, batch):
+    def forward(self, batch, graph_alpha=False):
         """
         Input:
             v: [batch, num_objs, v_dim]
@@ -171,8 +171,11 @@ class RelationEncoder(BaseEncoder):
         q = self.q_net(q) # [batch, hidden_dim]
 
         # Get relation-aware visual feature
-        v = self.spatial_encoder(v, graph) # [batch, num_objs, v_dim]
+        v = self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
 
+        if graph_alpha:
+            v, graph = v
+            return v, q, v_att, graph
         return v, q, v_att
 
 
