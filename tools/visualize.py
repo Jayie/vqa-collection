@@ -8,9 +8,9 @@ import torch
 def sample_one_batch(dataset, sample=0):
     """Directly transpose the sample data into a batch."""
     batch = {}
-    batch['feature'] = dataset.questions[sample]
+    batch['feature'] = dataset.questions[sample]['img_file']
     batch['feature_path'] = dataset.feature_path
-    batch['q_word'] = dataset.questions[sample]
+    batch['q_word'] = dataset.questions[sample]['q_word']
     batch['target'] = dataset.answers[sample]
     data = dataset[sample]
     for i in data:
@@ -22,8 +22,11 @@ def sample_one_batch(dataset, sample=0):
             batch[i] = torch.Tensor([data[i]])
     return batch
 
-def show_top_k_regions(model, batch, ans_list, img_path='../COCO', k=3):
+def show_top_k_regions(model, dataset, ans_list, sample=0, img_path='../COCO', k=3):
     """Show the top-k relevant regions according to the questions."""
+    # sample batch
+    batch = sample_one_batch(dataset, sample)
+
     model.eval()
     # Get prediction and attention map
     predict, _, att = model(batch)
@@ -31,8 +34,8 @@ def show_top_k_regions(model, batch, ans_list, img_path='../COCO', k=3):
 
     # Prepare image and bbox
     img_file = batch['feature'][:-3] + 'jpg'
-    img = Image.open(os.path.join(img_path, img_file))
-    bbox = np.load(os.path.join(batch['feature_path'], batch['feature']))
+    img = Image.open(os.path.join(img_path, os.path.basename(dataset.feature_path), img_file))
+    bbox = np.load(os.path.join(batch['feature_path'], batch['feature']))['bbox']
     
     # Setup background (transparency=0.3)
     output = img.copy()
