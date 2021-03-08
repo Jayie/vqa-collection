@@ -135,7 +135,7 @@ class GCN(nn.Module):
         for _ in range(conv_layer-1):
             self.gcn.append(GraphConv(out_dim, out_dim, num_labels).to(device))
 
-    def forward(self, feature, graph, get_alpha=False):
+    def forward(self, feature, graph, get_alpha):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
@@ -148,5 +148,5 @@ class GCN(nn.Module):
             else:
                 feature = self.gcn[i](feature, graph, get_alpha)
         
-        if get_alpha: return feature, alphas
+        if get_alpha: return alphas
         return feature

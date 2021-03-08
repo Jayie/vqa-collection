@@ -141,8 +141,8 @@ class RelationEncoder(BaseEncoder):
             conv_layer=conv_layer,
             conv_type=conv_type
         )
-        
-    def forward(self, batch, graph_alpha=False):
+
+    def graph_alpha(self, batch):
         """
         Input:
             v: [batch, num_objs, v_dim]
@@ -171,11 +171,40 @@ class RelationEncoder(BaseEncoder):
         q = self.q_net(q) # [batch, hidden_dim]
 
         # Get relation-aware visual feature
-        v = self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+        att = self.spatial_encoder(v, graph, True) # [batch, num_objs, v_dim]
+        return att
 
-        if graph_alpha:
-            v, graph = v
-            return v, q, v_att, graph
+        
+    def forward(self, batch):
+        """
+        Input:
+            v: [batch, num_objs, v_dim]
+            q: [batch, q_len]
+            graph: [batch, num_objs, num_objs]
+        Output:
+            v: [batch, num_objs, v_dim]
+            q: [batch, hidden_dim]
+            att: [batch, num_objs, 1]
+        """
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        graph = batch['graph'].float().to(self.device)
+        
+        # Embed words and take the last output of RNN layer as the question embedding
+        q = self.embedding(q) # [batch, q_len, q_embed_dim]
+        q = self.q_rnn(q) # [batch, hidden_dim]
+        
+        # Get the attention of visual features based on question embedding
+        v_att = self.attention(v, q) # [batch, num_objs, 1]
+
+        # Get question-attended visual feature vq
+        v = v_att * v # [batch, num_objs, v_dim]
+
+        q = self.q_net(q) # [batch, hidden_dim]
+
+        # Get relation-aware visual feature
+        v = self.spatial_encoder(v, graph, False) # [batch, num_objs, v_dim]
         return v, q, v_att
 
 
