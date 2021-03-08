@@ -92,7 +92,7 @@ class CorrelatedGraphConv(DirectedGraphConv):
         alpha = self.softmax(alpha)
         return alpha
 
-    def forward(self, feature, graph):
+    def forward(self, feature, graph, get_alpha=False):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
@@ -110,7 +110,9 @@ class CorrelatedGraphConv(DirectedGraphConv):
 
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
-        return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        output = feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        if get_alpha: return output, alpha
+        return output
 
 
 class GCN(nn.Module):
@@ -133,12 +135,18 @@ class GCN(nn.Module):
         for _ in range(conv_layer-1):
             self.gcn.append(GraphConv(out_dim, out_dim, num_labels).to(device))
 
-    def forward(self, feature, graph):
+    def forward(self, feature, graph, get_alpha=False):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
         """
+        alphas = []
         for i in range(len(self.gcn)):
-            feature = self.gcn[i](feature, graph)
+            if get_alpha:
+                feature, alpha = self.gcn[i](feature, graph, get_alpha)
+                alphas.append(alpha)
+            else:
+                feature = self.gcn[i](feature, graph, get_alpha)
         
+        if get_alpha: return feature, alphas
         return feature
