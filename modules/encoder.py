@@ -175,7 +175,7 @@ class RelationEncoder(BaseEncoder):
 
         if graph_alpha:
             v, g_att = v
-            return v, q, v_att, g_att
+            return g_att
         return v, q, v_att
 
 
