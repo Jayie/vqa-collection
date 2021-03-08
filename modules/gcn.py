@@ -138,7 +138,7 @@ class GCN(nn.Module):
     def __repr__(self):
         output = []
         for layer in self.gcn:
-            output.append(layer.__repr__)
+            output.append(layer.__repr__())
         return '\n'.join(output)
 
     def forward(self, feature, graph, get_alpha):
