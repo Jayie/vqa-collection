@@ -35,7 +35,7 @@ class BaseGraphConv(nn.Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, feature, graph):
+    def forward(self, feature, graph, get_alpha):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs] (note that this graph is an adjacency matrix)
@@ -44,7 +44,8 @@ class BaseGraphConv(nn.Module):
         batch = feature.size(0)
         output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
         output = torch.bmm(graph, output)
-        if self.bias is not None: return output + self.bias.unsqueeze(0).repeat(batch,1,1)
+        if self.bias is not None: output = output + self.bias.unsqueeze(0).repeat(batch,1,1)
+        if get_alpha: return output, graph
         return output
 
     def __repr__(self):
@@ -59,7 +60,7 @@ class DirectedGraphConv(BaseGraphConv):
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
         self.reset_parameters()
 
-    def forward(self, feature, graph):
+    def forward(self, feature, graph, get_alpha):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
@@ -72,7 +73,9 @@ class DirectedGraphConv(BaseGraphConv):
         
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
-        return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        output = feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        if get_alpha: return output, adj
+        return output
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
@@ -92,7 +95,7 @@ class CorrelatedGraphConv(DirectedGraphConv):
         alpha = self.softmax(alpha)
         return alpha
 
-    def forward(self, feature, graph, get_alpha=False):
+    def forward(self, feature, graph, get_alpha):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
@@ -143,10 +146,10 @@ class GCN(nn.Module):
         alphas = []
         for i in range(len(self.gcn)):
             if get_alpha:
-                feature, alpha = self.gcn[i](feature, graph, get_alpha)
+                feature, alpha = self.gcn[i](feature, graph, True)
                 alphas.append(alpha)
             else:
-                feature = self.gcn[i](feature, graph, get_alpha)
+                feature = self.gcn[i](feature, graph, False)
         
         if get_alpha: return alphas
         return feature
