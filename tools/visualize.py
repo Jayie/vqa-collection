@@ -62,10 +62,11 @@ def show_graph_att(model, dataset, ans_list, sample=0, img_path='../COCO', k=3, 
     
     # Get prediction and graph attentions
     model.eval()
-    predict, _, att = model(batch)
-    index = att.argmax().item()
-    g_att = model.encoder(batch, True)[layer][0, index, :]
-    g_att[index] = 1
+    with torch.no_grad():
+        predict, _, att = model(batch)
+        index = att.argmax().item()
+        g_att = model.encoder(batch, True)[layer][0, index, :]
+        g_att[index] = 1
     
     # Prepare image and bbox
     img_file = batch['feature'][:-3] + 'jpg'
@@ -89,10 +90,11 @@ def show_top_k_regions(model, dataset, ans_list, sample=0, img_path='../COCO', k
     # sample batch
     batch = sample_one_batch(dataset, sample)
 
-    model.eval()
     # Get prediction and attention map
-    predict, _, att = model(batch)
-    att = att.squeeze()
+    model.eval()
+    with torch.no_grad():
+        predict, _, att = model(batch)
+        att = att.squeeze()
 
     # Prepare image and bbox
     img_file = batch['feature'][:-3] + 'jpg'
