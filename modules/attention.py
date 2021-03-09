@@ -14,12 +14,12 @@ class ConcatAttention(nn.Module):
     output = Softmax([v:q])
     """
 
-    def __init__(self, v_dim, q_dim, fc_dim):
+    def __init__(self, v_dim, q_dim, hidden_dim):
         super().__init__()
         self.sequence = nn.Sequential(
-            weight_norm(nn.Linear(v_dim+q_dim, fc_dim), dim=None),
+            weight_norm(nn.Linear(v_dim+q_dim, hidden_dim), dim=None),
             nn.ReLU(),
-            weight_norm(nn.Linear(fc_dim, 1), dim=None)
+            weight_norm(nn.Linear(hidden_dim, 1), dim=None)
         )
 
     def logits(self, v, q):
