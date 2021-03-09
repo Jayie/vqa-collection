@@ -67,6 +67,8 @@ def train(  model, lr,
     """
     writer = SummaryWriter(comment=comment)
     optimizer = torch.optim.Adamax(model.parameters())
+    # TODO: Try lr scheduler
+
     best_score = best_score
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
