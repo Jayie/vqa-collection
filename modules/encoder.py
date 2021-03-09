@@ -134,6 +134,7 @@ class RelationEncoder(BaseEncoder):
                  device: str,
                  dropout: float = 0.5,
                  rnn_type: str = 'GRU',
+                 att_type: str = 'base',
                  conv_layer: int = 1,
                  conv_type: str = 'corr',
     ):
