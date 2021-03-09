@@ -58,6 +58,7 @@ def set_model(  model_type: str,
                 dropout: float = 0.5,
                 neg_slope: float = 0.5,
                 rnn_type: str = 'GRU',
+                att_type: str = 'base',
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
 ):
@@ -66,19 +67,19 @@ def set_model(  model_type: str,
     set_generator = None
 
     if model_type == 'base':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
     
     elif model_type == 'new':
-        set_encoder = encoder.NewEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
     
     elif model_type == 'cap':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
 
     elif model_type == 'vqa-e':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
+        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
     
@@ -88,7 +89,7 @@ def set_model(  model_type: str,
         set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
     
     elif model_type == 'conv':
-        set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, conv_layer, conv_type)
+        set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type, conv_layer, conv_type)
         set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
 
     return Wrapper(device, set_encoder, set_predictor, set_generator)

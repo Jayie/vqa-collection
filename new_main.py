@@ -38,6 +38,7 @@ def parse_args():
     # model settings
     parser.add_argument('--model', type=str, default='base', help='model type')
     parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU or LSTM, default = GRU)')
+    parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=512, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
@@ -100,6 +101,7 @@ def main():
                         dropout=args.dropout,
                         device=args.device,
                         rnn_type=args.rnn_type,
+                        att_type=args.att_type,
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
                 )
