@@ -67,7 +67,7 @@ class BaseEncoder(nn.Module):
         )
 
         # Attention layer for image features based on questions
-        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
+        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=att_fc_dim)
 
         # Non-linear layers for image features
         self.q_net = FCNet(hidden_dim, hidden_dim)
