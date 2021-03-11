@@ -47,6 +47,9 @@ def train(  model, lr,
             start_epoch: int = 0, batches: int = 0,
             max_norm: float = 0.25,
             best_score: float = 0,
+            warm_up: int = 0,
+            step_size: int = 0,
+            gamma: float = 0.25,
 ): 
     """
     Train process.
@@ -64,10 +67,14 @@ def train(  model, lr,
         batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
         max_norm: for clip_grad_norm (default = 0.25)
         best_score: if load model, get the best score (default = 0)
+        warm_up: warm-up step for lr scheduler (default = 0)
+        step_size: step size for lr scheduler (default = 0 i.e. do not use lr scheduler)
+        gamma: gama for lr scheduler (default = 0.25)
+
     """
     writer = SummaryWriter(comment=comment)
     optimizer = torch.optim.Adamax(model.parameters())
-    # TODO: Try lr scheduler
+    schedualer = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
     best_score = best_score
     best_epoch = 0
@@ -177,6 +184,12 @@ def train(  model, lr,
             msg = f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}'
             print(msg)
             logger.write(msg)
+
+        # if not warm-up step: scheduler step
+        if epoch >= warm_up and step_size != 0:
+            schedualer.step()
+            temp = optimizer.param_groups[0]['lr']
+            print(f'lr={temp:.4f}')
 
 
 def evaluate(model, dataloader, device: str, logger = None, comment = None): 
