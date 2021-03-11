@@ -206,6 +206,8 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     l = len(dataloader.dataset)
 
+    # TODO: Show scores for different answer types
+
     if comment: writer = SummaryWriter(comment=comment)
     model = model.to(device)
     model.eval()
