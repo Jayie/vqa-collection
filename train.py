@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -34,120 +35,169 @@ def ce_for_language_model(predict, target):
     return loss
 
 
-def set_optim(optim_type: str = 'adamax'):
-    optim = {
-        'adamax': torch.optim.Adamax,
-        'adadelta': torch.optim.Adadelta,
-        'adam': torch.optim.Adam
-    }
-    assert optim_type in optim.keys()
-    return optim[optim_type]
-
-
 def train(  model, lr,
-            train_loader, val_loader, num_epoches, save_path, device, logger,
-            comment='', checkpoint=10000, max_norm=0.25,
-            start_epoch=0, batches=0, best_score=0,
-            model_type='base', optim_type='adamax'
-    ):
+            train_loader, val_loader,
+            logger,
+            save_path: str,
+            num_epoches: int,
+            device: str,
+            comment: str = '',
+            optim_type: str = 'adamax',
+            checkpoint: int = 10000,
+            start_epoch: int = 0, batches: int = 0,
+            max_norm: float = 0.25,
+            best_score: float = 0,
+            warm_up: int = 0,
+            step_size: int = 0,
+            gamma: float = 0.25,
+): 
     """
     Train process.
     Input:
         model: the model we want to train
         lr: learning rate
         train_loader/val_loader: training/validation dataloader
-        start_epoch/num_epoches: start from the start_epoch (default = 0), and end at the num_epoches
-        save_path: path for saving models
-        device: device
         logger: logger for writing log file
+        save_path: path for saving models
+        start_epoch/num_epoches: start from the start_epoch (default = 0), and end at the num_epoches
+        device: device
         comment: comment for Tensorboard Summary Writer (default = '')
-        checkpoint: save model status for each N batches (default = 10000)
-        max_norm: for clip_grad_norm (default = 0.25)
-        batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
-        best_score: the best score (default = 0)
-        model_type: the type of model (default = base, i.e. Bottom-Up and Top-Down model)
         optim_type: the type of optimizer (default = adamax)
+        checkpoint: save model status for each N batches (default = 10000)
+        batches: only run the first N batches per epoch, if batches = 0 then run the whole epoch (default = 0)
+        max_norm: for clip_grad_norm (default = 0.25)
+        best_score: if load model, get the best score (default = 0)
+        warm_up: warm-up step for lr scheduler (default = 0)
+        step_size: step size for lr scheduler (default = 0 i.e. do not use lr scheduler)
+        gamma: gama for lr scheduler (default = 0.25)
+
     """
-    # optimizer = torch.optim.Adamax(model.parameters())
-    optimizer = set_optim(optim_type)(model.parameters(), lr=lr)
     writer = SummaryWriter(comment=comment)
-    if batches == 0: batches = len(train_loader)
-    
+    optimizer = torch.optim.Adamax(model.parameters())
+    schedualer = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
+
     best_score = best_score
     best_epoch = 0
-    
+    if batches == 0: batches = len(train_loader)
+
     # Parallelism
-    # if torch.cuda.device_count() > 1:
-    #     print('Use', torch.cuda.device_count(), 'GPUs.')
-    #     model = nn.DataParallel(model)
-    
+    if torch.cuda.device_count() > 1:
+        print('Use', torch.cuda.device_count(), 'GPUs.')
+        model = nn.DataParallel(model)
+
     model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0
-        prev_loss = 0
-        
+        prev_loss = 0 # loss at last checkpoint
+
         model.train()
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
-            target = batch['a'].float().to(device)
+            
+            predict, caption, _ = model(batch)
+            loss = torch.tensor(0, dtype=torch.float).to(device)
+            # For VQA
+            if predict != None:
+                target = batch['a'].float().to(device)
+                loss_vqa = instance_bce_with_logits(predict, target)
+                loss += loss_vqa
 
-            predict = model(batch)
-            loss = instance_bce_with_logits(predict, target)
-            # TODO: loss functions for captioning
-            # TODO: for VQA with Question-relevant Caption, back-prop the gradients only from the most relevant caption
+                # write to Tensorboard
+                score = compute_score(predict, target, device).sum().item()
+                writer.add_scalar('train/loss', loss_vqa.item(), epoch * batches + i)
+                writer.add_scalar('train/score', score, epoch * batches + i)
+                
+                # Delete used objects
+                predict.detach()
+                target.detach()
+                loss_vqa.detach()
+                del predict
+                del target
+                del loss_vqa
 
+            # For captioning
+            if caption != None:
+                caption = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
+                target = pack_padded_sequence(batch['c'].to(device), caption['decode_len'], batch_first=True).data
+                loss_cap = ce_for_language_model(caption, target)
+                loss += loss_cap
+
+                # Write to Tensorboard
+                writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
+                
+                # Delete used objects
+                caption.detach()
+                target.detach()
+                loss_cap.detach()
+                del caption
+                del target
+                del loss_cap
+            
+
+            ##############################################################################################################################
+            # TODO: Back prop. strategy for 'Generating Question Relevant Captions to Aid Visual Question Answering'
+            #       Suppose that datas in each batch share the same Q-A pair with different caption,
+            #       our goal is to select the most relevant one (which means that the gradient of Q-A pair and the caption are similar)
+            #
+            # TODO: Reconstruct dataset and dataloader for this model
+            ##############################################################################################################################
+
+            # Back prop.
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
             optimizer.zero_grad()
 
             avg_loss += loss.item()
-            score = compute_score(predict, target, device).sum().item()
 
-            # write loss and score to Tensorboard
-            writer.add_scalar('train/loss', loss.item(), epoch * batches + i)
-            writer.add_scalar('train/score', score, epoch * batches + i)
-            
             if i % checkpoint == 0 and i != 0:
-                # save checkpoint
                 torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
                 t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
                 logger.write(f'[Batch {i}] loss: {(avg_loss-prev_loss)/checkpoint:.4f} ({t})')
                 prev_loss = avg_loss
-
+            
         # when an epoch is completed
         # save checkpoint
         torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_final.pt')
 
-        # evaluate
-        eval_score, bound = evaluate(model, val_loader, device)
-        
-        # save log
-        avg_loss /= batches
-        t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
-        logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
-        writer.add_scalar('train/eval', eval_score, epoch)
+        # If there is VQA module: evaluate
+        if model.predictor != None:
+            # evaluate
+            eval_score, bound = evaluate(model, val_loader, device)
 
-        # reset average loss
-        avg_loss = 0
+            # save log
+            avg_loss /= batches
+            t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
+            logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
+            writer.add_scalar('train/eval', eval_score, epoch)
 
-        # save the best model
-        if eval_score > best_score:
-            torch.save(model.state_dict(), f'{save_path}/best_model.pt')
-            best_score = eval_score
-            best_epoch = epoch
+            # reset average loss
+            avg_loss = 0
 
-        msg = f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}'
-        print(msg)
-        logger.write(msg)
+            # save the best model
+            if eval_score > best_score:
+                torch.save(model.state_dict(), f'{save_path}/best_model.pt')
+                best_score = eval_score
+                best_epoch = epoch
 
-def evaluate(model, dataloader, device, logger=None, comment=None):
+            msg = f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}'
+            print(msg)
+            logger.write(msg)
+
+        # if not warm-up step: scheduler step
+        if epoch >= warm_up and step_size != 0:
+            schedualer.step()
+            temp = optimizer.param_groups[0]['lr']
+            print(f'lr={temp:.4f}')
+
+
+def evaluate(model, dataloader, device: str, logger = None, comment = None): 
     """
-    Evaluate process.
+    Evaluate process for VQA.
     Input:
         model: the model we want to train
-        val_loader: validation dataloader
+        dataloader: validation dataloader
         device: device
         logger: logger for writing log file, if logger = None then do not write results into log file (default = None)
         comment: comment for Tensorboard Summary Writer, if comment = None then do not write results into Tensorboard (default = None)
@@ -155,21 +205,23 @@ def evaluate(model, dataloader, device, logger=None, comment=None):
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     l = len(dataloader.dataset)
-    
+
     if comment: writer = SummaryWriter(comment=comment)
     model = model.to(device)
     model.eval()
     start = time.time()
     with torch.no_grad():
-        for i, batch in enumerate(tqdm(dataloader, desc='eval')):
+        for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
-            predict = model(batch)
+            predict, _, _ = model(batch)
+            # loss = instance_bce_with_logits(predict, target)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
             target_score += target.max(1)[0].sum().item()
 
-            if comment: writer.add_scalar(f'val/score', score/l, i)
-    
+            # write to Tensorboard
+            if comment: writer.add_scalar('val/vqa/score', score/l, i)
+            
     score /= l
     target_score /= l
 
