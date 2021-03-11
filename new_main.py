@@ -47,6 +47,11 @@ def parse_args():
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
 
+    # learning rate scheduler settings
+    parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
+    parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
+    parser.add_argument('--gamma', type=float, default=0.25, help='gamma for learning rate scheduler')
+
     # relation encoder settings
     parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
     parser.add_argument('--conv_type', type=str, default='corr', help='GCN type (base/direct/corr, default = corr)')
