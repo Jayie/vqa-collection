@@ -152,14 +152,14 @@ def train(  model, lr,
             avg_loss += loss.item()
 
             if i % checkpoint == 0 and i != 0:
-                torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
+                # torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
                 t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
                 logger.write(f'[Batch {i}] loss: {(avg_loss-prev_loss)/checkpoint:.4f} ({t})')
                 prev_loss = avg_loss
             
         # when an epoch is completed
         # save checkpoint
-        torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_final.pt')
+        torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}.pt')
 
         # If there is VQA module: evaluate
         if model.predictor != None:

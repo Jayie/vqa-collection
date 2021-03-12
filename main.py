@@ -48,9 +48,10 @@ def parse_args():
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
 
     # learning rate scheduler settings
+    parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
-    parser.add_argument('--gamma', type=float, default=0.25, help='gamma for learning rate scheduler')
+    parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
 
     # relation encoder settings
     parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
@@ -61,7 +62,6 @@ def parse_args():
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
     parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
-    parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
 
     # use pre-trained word embedding
     parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
