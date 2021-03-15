@@ -1,6 +1,7 @@
 import os
 import time
 from tqdm import tqdm
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -204,12 +205,9 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     """
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
+    all_score = []
     l = len(dataloader.dataset)
 
-    if ans_index is not None:
-        output = {}
-        for ans in ans_index:
-            output['hparam/'+ans] = 0
     
     model = model.to(device)
     model.eval()
@@ -217,17 +215,11 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
-            predict, _, _ = model(batch)
-            batch_score = compute_score(predict, target, device).sum().item()
-            score += batch_score
+            predict, _, _ = model(batch) # predict = [batch_size, ans_dim]
+            batch_score = compute_score(predict, target, device).sum(dim=1)
+            score += batch_score.sum().item()
             target_score += target.max(1)[0].sum().item()
-
-            if index is not None:
-                for ans in ans_index:
-                    if i in ans_index[ans]:
-                        output['hparam/'+ans] += (batch_score / len(ans_index[ans]))
-                        ans_index[ans].remove(i)
-                        break
+            all_score.extend(batch_score.cpu().tolist())
 
             # write to Tensorboard
             if writer: writer.add_scalar('val/vqa/score', score/l, i)
@@ -241,6 +233,12 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
         logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
     
     if ans_index is not None:
+        # return metric dictionary
+        all_score = np.array(all_score)
+        output = {}
+        for ans in ans_index:
+            output['hparam/'+ans] = all_score[ans_index[ans]].sum()
         output['hparam/score'] = score
         return output
+    
     return score, target_score

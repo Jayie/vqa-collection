@@ -32,6 +32,7 @@ class FeatureExtractor():
                 outputs.append(x)
         return outputs, x
 
+
 class Wrapper(nn.Module):
     def __init__(self, device: str, encoder=None, predictor=None, generator=None):
         super().__init__()
