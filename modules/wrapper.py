@@ -13,6 +13,25 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model
 
+class FeatureExtractor():
+    def __init__(self, model, target_layers):
+        self.model = model
+        self.target_layers = target_layers
+        self.gradients = []
+    
+    def save_grad(self, grad):
+        self.gradients.append(grad)
+    
+    def __call__(self, x):
+        outputs = []
+        self.gradients = []
+        for name, module in self.model._modules.items():
+            x = module(x)
+            if module in self.target_layers:
+                x.register_hook(self.save_grad)
+                outputs.append(x)
+        return outputs, x
+
 class Wrapper(nn.Module):
     def __init__(self, device: str, encoder=None, predictor=None, generator=None):
         super().__init__()
@@ -20,6 +39,9 @@ class Wrapper(nn.Module):
         self.encoder = encoder
         self.predictor = predictor
         self.generator = generator
+
+    def get_grad(self):
+        return self.feature_extractor.gradients
 
     def forward(self, batch):
         # If encoder exists: get visual and text embeddings
@@ -62,34 +84,80 @@ def set_model(  model_type: str,
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
 ):
-    set_encoder = None
-    set_predictor = None
-    set_generator = None
+    def set_encoder():
+        if model_type == 'conv':
+            return encoder.RelationEncoder(
+                ntoken=ntoken,
+                embed_dim=embed_dim,
+                hidden_dim=hidden_dim,
+                v_dim=v_dim,
+                att_fc_dim=att_fc_dim,
+                device=device,
+                dropout=dropout,
+                rnn_type=rnn_type,
+                rnn_layer=rnn_layer,
+                att_type=att_type,
+                conv_type=conv_type,
+                conv_layer=conv_layer
+            )
+        if model_type == 'q-cap':
+            return encoder.CaptionEncoder(
+                ntoken=ntoken,
+                embed_dim=embed_dim,
+                hidden_dim=hidden_dim,
+                rnn_layer=rnn_layer,
+                v_dim=v_dim,
+                att_fc_dim=att_fc_dim,
+                c_len=c_len,
+                device=device,
+                dropout=dropout,
+                rnn_type=rnn_type,
+                neg_slope=neg_slope
+            )
+        return encoder.BaseEncoder(
+            ntoken=ntoken,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            v_dim=v_dim,
+            att_fc_dim=att_fc_dim,
+            device=device,
+            dropout=dropout,
+            rnn_type=rnn_type,
+            rnn_layer=rnn_layer,
+            att_type=att_type
+        )
 
-    if model_type == 'base':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
-        set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
-    
-    elif model_type == 'new':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
-        set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
-    
-    elif model_type == 'cap':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
-        set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
+    def set_predictor():
+        if model_type == 'cap': return None
+        if model_type == 'q-cap': return predictor.PredictorwithCaption(
+            v_dim=v_dim,
+            hidden_dim=hidden_dim,
+            ans_dim=ans_dim,
+            device=device,
+            cls_layer=cls_layer,
+            dropout=dropout,
+            neg_slope=neg_slope
+        )
+        return predictor.BasePredictor(
+            v_dim=v_dim,
+            hidden_dim=hidden_dim,
+            ans_dim=ans_dim,
+            device=device,
+            cls_layer=cls_layer,
+            dropout=dropout
+        )
 
-    elif model_type == 'vqa-e':
-        set_encoder = encoder.BaseEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
-        set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
-        set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
-    
-    elif model_type == 'q-cap':
-        set_encoder = encoder.CaptionEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, c_len, device, dropout, rnn_type, neg_slope)
-        set_predictor = predictor.PredictorwithCaption(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout, neg_slope)
-        set_generator = CaptionDecoder(ntoken, embed_dim, hidden_dim, v_dim, c_len, device, dropout, rnn_type)
-    
-    elif model_type == 'conv':
-        set_encoder = encoder.RelationEncoder(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type, conv_layer, conv_type)
-        set_predictor = predictor.BasePredictor(v_dim, hidden_dim, ans_dim, device, cls_layer, dropout)
+    def set_generator():
+        if model_type in ['base', 'conv']: return None
+        return CaptionDecoder(
+            ntoken=ntoken,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            v_dim=v_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout,
+            rnn_type=rnn_type,
+        )
 
-    return Wrapper(device, set_encoder, set_predictor, set_generator)
+    return Wrapper(device, set_encoder(), set_predictor(), set_generator())

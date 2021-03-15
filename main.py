@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--load_path', type=str, default='../annot', help='path for loading dataset')
     parser.add_argument('--feature_path', type=str, default='../../COCO_feature_36', help='path for COCO image features')
     parser.add_argument('--graph_path', type=str, default='../../COCO_graph_36', help='path for COCO spatial relation graphs')
+    parser.add_argument('--index_path', type=str, default='../annot/index.pkl', help='path for index of different answer types')
     parser.add_argument('--seed', type=int, default=10, help='random seed')
     parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
     parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
@@ -146,8 +147,8 @@ def main():
             score, _ = evaluate(model, val_loader, args.device)
             print(f'best score: {score:.4f}')
 
-            model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}_final.pt'))
-            print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}_final.pt')
+            model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}.pt'))
+            print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}.pt')
 
         print('start training.')
         train(
@@ -175,6 +176,10 @@ def main():
         model.load_state_dict(torch.load(args.load_model))
         print('load parameters: ', args.load_model)
 
+        # load index of different answer types
+        with open(args.index_path, 'rb') as f:
+            ans_index = pickle.load(f)
+
         # setup validation dataset
         print('loading valid dataset', end='... ')
         val_data = set_dataset(
@@ -187,33 +192,32 @@ def main():
             dataset_type='vqac'
         )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
+        writer = SummaryWriter(comment=args.comment+'_val')
 
         # evaluate
-        score, _ = evaluate(
+        metric = evaluate(
             model=model,
             dataloader=val_loader,
             device=args.device,
             logger=logger,
-            comment=args.comment+'_val'
+            writer=writer,
+            ans_index=ans_index
         )
-
+        
         # Write the results to Tensorboard
-        with SummaryWriter() as w:
-            w.add_hparams(
-                hparam_dict={
-                    'name': args.comment,
-                    'embed_dim': args.embed_dim,
-                    'hidden_dim': args.hidden_dim,
-                    'att_fc_dim': args.att_fc_dim,
-                    'rnn_layer': args.rnn_layer,
-                    'cls_layer': args.cls_layer,
-                    'epoches': args.epoches,
-                    'dropout': args.dropout,
-                },
-                metric_dict={
-                    'hparam/score': score
-                }
-            )
+        writer.add_hparams(
+            hparam_dict={
+                'name': args.comment,
+                'embed_dim': args.embed_dim,
+                'hidden_dim': args.hidden_dim,
+                'att_fc_dim': args.att_fc_dim,
+                'rnn_layer': args.rnn_layer,
+                'cls_layer': args.cls_layer,
+                'gcn_layer': args.gcn_layer,
+                'dropout': args.dropout,
+            },
+            metric_dict=metric
+        )
 
     elif args.mode == 'sample_vqa':
         val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')

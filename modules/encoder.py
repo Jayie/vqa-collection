@@ -100,26 +100,6 @@ class BaseEncoder(nn.Module):
         return v, q, v_att
 
 
-# class NewEncoder(BaseEncoder):
-#     """
-#     This is for the winning entry of the 2017 VQA Challenge,
-#     but replaces the concat attention in the original design with the dot attention.
-#     """
-#     def __init__(self,
-#                  ntoken: int,
-#                  embed_dim: int,
-#                  hidden_dim: int,
-#                  rnn_layer: int,
-#                  v_dim: int,
-#                  att_fc_dim: int,
-#                  device: str,
-#                  dropout: float = 0.5,
-#                  rnn_type: str = 'GRU',
-#     ):
-#         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type)
-#         self.attention = MultiplyAttention(v_dim, hidden_dim, att_fc_dim)
-
-
 class RelationEncoder(BaseEncoder):
     """
     This is for 'Relation-Aware Graph Network for Visual Question Answering'

@@ -192,7 +192,7 @@ def train(  model, lr,
             print(f'lr={temp:.4f}')
 
 
-def evaluate(model, dataloader, device: str, logger = None, comment = None): 
+def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None):
     """
     Evaluate process for VQA.
     Input:
@@ -200,15 +200,17 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
         dataloader: validation dataloader
         device: device
         logger: logger for writing log file, if logger = None then do not write results into log file (default = None)
-        comment: comment for Tensorboard Summary Writer, if comment = None then do not write results into Tensorboard (default = None)
+        writer: writer for Tensorboard Summary Writer, if comment = None then do not write results into Tensorboard (default = None)
     """
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     l = len(dataloader.dataset)
 
-    # TODO: Show scores for different answer types
-
-    if comment: writer = SummaryWriter(comment=comment)
+    if ans_index is not None:
+        output = {}
+        for ans in ans_index:
+            output['hparam/'+ans] = 0
+    
     model = model.to(device)
     model.eval()
     start = time.time()
@@ -216,13 +218,19 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
             predict, _, _ = model(batch)
-            # loss = instance_bce_with_logits(predict, target)
             batch_score = compute_score(predict, target, device).sum().item()
             score += batch_score
             target_score += target.max(1)[0].sum().item()
 
+            if index is not None:
+                for ans in ans_index:
+                    if i in ans_index[ans]:
+                        output['hparam/'+ans] += (batch_score / len(ans_index[ans]))
+                        ans_index[ans].remove(i)
+                        break
+
             # write to Tensorboard
-            if comment: writer.add_scalar('val/vqa/score', score/l, i)
+            if writer: writer.add_scalar('val/vqa/score', score/l, i)
             
     score /= l
     target_score /= l
@@ -232,4 +240,7 @@ def evaluate(model, dataloader, device: str, logger = None, comment = None):
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
     
+    if ans_index is not None:
+        output['hparam/score'] = score
+        return output
     return score, target_score
