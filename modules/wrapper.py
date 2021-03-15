@@ -13,25 +13,6 @@ def use_pretrained_embedding(model, vocab_path: str, device: str):
     model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model
 
-class FeatureExtractor():
-    def __init__(self, model, target_layers):
-        self.model = model
-        self.target_layers = target_layers
-        self.gradients = []
-    
-    def save_grad(self, grad):
-        self.gradients.append(grad)
-    
-    def __call__(self, x):
-        outputs = []
-        self.gradients = []
-        for name, module in self.model._modules.items():
-            x = module(x)
-            if module in self.target_layers:
-                x.register_hook(self.save_grad)
-                outputs.append(x)
-        return outputs, x
-
 
 class Wrapper(nn.Module):
     def __init__(self, device: str, encoder=None, predictor=None, generator=None):
@@ -40,14 +21,20 @@ class Wrapper(nn.Module):
         self.encoder = encoder
         self.predictor = predictor
         self.generator = generator
+        self.gradients = []
 
-    def get_grad(self):
-        return self.feature_extractor.gradients
+    def save_grad(self, grad):
+        self.gradients.append(grad)
 
     def forward(self, batch):
         # If encoder exists: get visual and text embeddings
         # Else: get original features
-        v, w, att = self.encoder(batch) if self.encoder!=None else (batch['img'].to(self.device), None, None)
+        if self.encoder != None:
+            v, w, att = self.encoder(batch)
+            self.gradients = []
+            v.register_hook(self.save_grad)
+        else:
+            v, w, att = (batch['img'].to(self.device), None, None)
 
         # If VQA module exists: get prediction
         predict = self.predictor(v, w) if self.predictor!=None else None
