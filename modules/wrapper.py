@@ -31,8 +31,8 @@ class Wrapper(nn.Module):
         # Else: get original features
         if self.encoder != None:
             v, w, att = self.encoder(batch)
-            self.gradients = []
-            v.register_hook(self.save_grad)
+            # self.gradients = []
+            # v.register_hook(self.save_grad)
         else:
             v, w, att = (batch['img'].to(self.device), None, None)
 

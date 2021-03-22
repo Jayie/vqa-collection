@@ -9,7 +9,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.tensorboard import SummaryWriter
 
 
-def compute_score(predict, target, device):
+def compute_score(predict, target, device, get_label=False):
     """Compute score (according to the VQA evaluation metric)"""
     # get the most possible predicted results for each question
     logits = torch.max(predict, 1)[1].data
@@ -19,6 +19,7 @@ def compute_score(predict, target, device):
     one_hots.scatter_(1, logits.view(-1, 1), 1)
 
     scores = one_hots * target
+    if get_label: return scores, logits
     return scores
 
 
@@ -205,7 +206,7 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     """
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
-    all_score = []
+    all_score = torch.zeros(len(dataloader), dataloader.batch_size)
     l = len(dataloader.dataset)
 
     
@@ -216,10 +217,10 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
             predict, _, _ = model(batch) # predict = [batch_size, ans_dim]
-            batch_score = compute_score(predict, target, device).sum(dim=1)
+            batch_score = compute_score(predict, target, device)
             score += batch_score.sum().item()
             target_score += target.max(1)[0].sum().item()
-            all_score.extend(batch_score.cpu().tolist())
+            all_score[i,:batch_score.shape[0]] = batch_score.sum(dim=1)
 
             # write to Tensorboard
             if writer: writer.add_scalar('val/vqa/score', score/l, i)
@@ -234,10 +235,12 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     
     if ans_index is not None:
         # return metric dictionary
-        all_score = np.array(all_score)
+        all_score = all_score.view(-1).numpy()
         output = {}
         for ans in ans_index:
-            output['hparam/'+ans] = all_score[ans_index[ans]].sum()
+            output['hparam/'+ans] = all_score[ans_index[ans]].sum() / len(ans_index[ans])
+        for i in output:
+            logger.write(f'\t{i}: {output[i]:.10f}')
         output['hparam/score'] = score
         return output
     

@@ -203,7 +203,8 @@ def main():
             writer=writer,
             ans_index=ans_index
         )
-        
+
+        print(metric)
         # Write the results to Tensorboard
         writer.add_hparams(
             hparam_dict={
@@ -213,7 +214,7 @@ def main():
                 'att_fc_dim': args.att_fc_dim,
                 'rnn_layer': args.rnn_layer,
                 'cls_layer': args.cls_layer,
-                'gcn_layer': args.gcn_layer,
+                'gcn_layer': args.conv_layer,
                 'dropout': args.dropout,
             },
             metric_dict=metric
