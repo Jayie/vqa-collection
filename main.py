@@ -138,7 +138,7 @@ def main():
             is_val=True,
             dataset_type='vqac'
         )
-        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
+        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
 
         # if need to train continously, load the previous status of model
         score = 0.0
@@ -191,20 +191,24 @@ def main():
             is_val=True,
             dataset_type='vqac'
         )
-        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=args.shuffle)
+        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
         writer = SummaryWriter(comment=args.comment+'_val')
 
-        # evaluate
+        # Evaluate
         metric = evaluate(
             model=model,
             dataloader=val_loader,
             device=args.device,
             logger=logger,
             writer=writer,
-            ans_index=ans_index
+            ans_index=ans_index,
+            save_path=os.path.join('checkpoint', args.comment, 'valid')
         )
 
-        print(metric)
+        # Show results
+        for i in metric:
+            print(f'{i}\t {metric[i] * 100:.4f} %')
+
         # Write the results to Tensorboard
         writer.add_hparams(
             hparam_dict={

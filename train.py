@@ -194,7 +194,7 @@ def train(  model, lr,
             print(f'lr={temp:.4f}')
 
 
-def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None):
+def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None, save_path=None):
     """
     Evaluate process for VQA.
     Input:
@@ -207,20 +207,23 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     score = 0
     target_score = 0 # the upper bound of score (i.e. the score of ground truth)
     all_score = torch.zeros(len(dataloader), dataloader.batch_size)
+    all_label = torch.zeros_like(all_score)
     l = len(dataloader.dataset)
 
-    
     model = model.to(device)
     model.eval()
     start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
+            batch_size = target.size(0)
             predict, _, _ = model(batch) # predict = [batch_size, ans_dim]
-            batch_score = compute_score(predict, target, device)
+            batch_score, label = compute_score(predict, target, device, True)
+
             score += batch_score.sum().item()
             target_score += target.max(1)[0].sum().item()
-            all_score[i,:batch_score.shape[0]] = batch_score.sum(dim=1)
+            all_score[i,:batch_size] = batch_score.sum(dim=1)
+            all_label[i,:batch_size] = label
 
             # write to Tensorboard
             if writer: writer.add_scalar('val/vqa/score', score/l, i)
@@ -233,9 +236,18 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
         logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
     
+    all_score = all_score.view(-1)
+    all_label = all_label.view(-1)
+
+    if save_path:
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        torch.save(all_label, os.path.join(save_path, 'labels.pt'))
+        torch.save(all_score, os.path.join(save_path, 'scores.pt'))
+
     if ans_index is not None:
         # return metric dictionary
-        all_score = all_score.view(-1).numpy()
+        all_score = all_score.numpy()
         output = {}
         for ans in ans_index:
             output['hparam/'+ans] = all_score[ans_index[ans]].sum() / len(ans_index[ans])
