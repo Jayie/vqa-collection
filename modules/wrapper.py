@@ -21,18 +21,25 @@ class Wrapper(nn.Module):
         self.encoder = encoder
         self.predictor = predictor
         self.generator = generator
-        self.gradients = []
 
-    def save_grad(self, grad):
-        self.gradients.append(grad)
+        # For gradient-based method:
+        # find the last layer of encoder
+        self.gradients = []
+        for name, module in self.encoder.named_modules():
+            pass 
+        self.encoder_last_layer = name
+        # hook
+        self.encoder.register_backward_hook(self.save_grad)
+
+    def save_grad(self, module, input, output):
+        self.gradients.append(output[0])
 
     def forward(self, batch):
         # If encoder exists: get visual and text embeddings
         # Else: get original features
         if self.encoder != None:
             v, w, att = self.encoder(batch)
-            # self.gradients = []
-            # v.register_hook(self.save_grad)
+
         else:
             v, w, att = (batch['img'].to(self.device), None, None)
 
