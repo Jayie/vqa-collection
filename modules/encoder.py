@@ -121,6 +121,15 @@ class RelationEncoder(BaseEncoder):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
 
         # Prepare GCN
+        self.implicit_encoder = GCN(
+            in_dim=v_dim,
+            out_dim=v_dim,
+            num_labels=12,
+            device=device,
+            conv_layer=conv_layer,
+            conv_type=conv_type
+        )
+
         self.spatial_encoder = GCN(
             in_dim=v_dim,
             out_dim=v_dim,
@@ -144,7 +153,6 @@ class RelationEncoder(BaseEncoder):
         # Setup inputs
         v = batch['img'].to(self.device)
         q = batch['q'].to(self.device)
-        graph = batch['graph'].float().to(self.device)
         
         # Embed words and take the last output of RNN layer as the question embedding
         q = self.embedding(q) # [batch, q_len, q_embed_dim]
@@ -159,7 +167,15 @@ class RelationEncoder(BaseEncoder):
         q = self.q_net(q) # [batch, hidden_dim]
 
         # Get relation-aware visual feature
-        v = self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+        new_v = torch.zeros_like(v)
+
+        # Implicit graph: fully-connected graph
+        graph = torch.ones_like(batch['graph']).float().to(self.device)
+        new_v = new_v + self.implicit_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+
+        # Spatial graph
+        graph = batch['graph'].float().to(self.device)
+        new_v = new_v + self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
 
         if graph_alpha:
             v, g_att = v
