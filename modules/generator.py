@@ -52,7 +52,7 @@ class CaptionDecoder(nn.Module):
         self.language_rnn = rnn_cls(input_size=v_dim + hidden_dim, hidden_size=hidden_dim)
 
         self.embedding = nn.Embedding(ntoken, embed_dim)
-        self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=hidden_dim)
+        self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.h1_fcnet = FCNet(in_dim=hidden_dim, out_dim=hidden_dim)
         self.h2_fcnet = FCNet(in_dim=hidden_dim, out_dim=ntoken)
         self.softmax = nn.Softmax(dim=1)
