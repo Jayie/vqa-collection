@@ -122,7 +122,7 @@ class RelationEncoder(BaseEncoder):
                  use_sem: bool = True
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
-        assert us_imp or use_spa or usee_sem, 'Should use at least one relation'
+        assert use_imp or use_spa or use_sem, 'Should use at least one relation'
 
         # Prepare GCN
         self.implicit_encoder = GCN(

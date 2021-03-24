@@ -38,6 +38,7 @@ class Wrapper(nn.Module):
         # If encoder exists: get visual and text embeddings
         # Else: get original features
         if self.encoder != None:
+            self.gradients = []
             v, w, att = self.encoder(batch)
 
         else:
