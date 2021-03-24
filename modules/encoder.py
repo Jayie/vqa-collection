@@ -117,8 +117,12 @@ class RelationEncoder(BaseEncoder):
                  att_type: str = 'base',
                  conv_layer: int = 1,
                  conv_type: str = 'corr',
+                 use_imp: bool = True,
+                 use_spa: bool = True,
+                 use_sem: bool = True
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
+        assert us_imp or use_spa or usee_sem, 'Should use at least one relation'
 
         # Prepare GCN
         self.implicit_encoder = GCN(
@@ -128,7 +132,7 @@ class RelationEncoder(BaseEncoder):
             device=device,
             conv_layer=conv_layer,
             conv_type=conv_type
-        )
+        ) if use_imp else None
 
         self.spatial_encoder = GCN(
             in_dim=v_dim,
@@ -137,7 +141,7 @@ class RelationEncoder(BaseEncoder):
             device=device,
             conv_layer=conv_layer,
             conv_type=conv_type
-        )
+        ) if use_spa else None
         
     def forward(self, batch, graph_alpha=False):
         """
@@ -170,13 +174,16 @@ class RelationEncoder(BaseEncoder):
         new_v = torch.zeros_like(v)
 
         # Implicit graph: fully-connected graph
-        graph = torch.ones_like(batch['graph']).float().to(self.device)
-        new_v = new_v + self.implicit_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+        if self.implicit_encoder:
+            graph = torch.ones_like(batch['graph']).float().to(self.device)
+            new_v = new_v + self.implicit_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
 
         # Spatial graph
-        graph = batch['graph'].float().to(self.device)
-        new_v = new_v + self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
-
+        if self.spatial_encoder:
+            graph = batch['graph'].float().to(self.device)
+            new_v = new_v + self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+        
+        v = new_v
         if graph_alpha:
             v, g_att = v
             return g_att
