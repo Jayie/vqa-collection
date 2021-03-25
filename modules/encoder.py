@@ -173,9 +173,11 @@ class RelationEncoder(BaseEncoder):
         # Get relation-aware visual feature
         new_v = torch.zeros_like(v)
 
-        # Implicit graph: fully-connected graph
+        # Implicit graph
         if self.implicit_encoder:
-            graph = torch.ones_like(batch['graph']).float().to(self.device)
+            # Prepare fully-connected graph
+            graph = torch.ones_like(batch['graph']) - torch.eye(batch['graph'].shape[1])
+            graph = graph.float().to(self.device)
             new_v = new_v + self.implicit_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
 
         # Spatial graph
