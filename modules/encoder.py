@@ -118,8 +118,9 @@ class RelationEncoder(BaseEncoder):
                  conv_layer: int = 1,
                  conv_type: str = 'corr',
                  use_imp: bool = True,
-                 use_spa: bool = True,
-                 use_sem: bool = True
+                 use_spa: bool = False,
+                 use_sem: bool = True,
+                 num_objs: int = 36
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
         assert use_imp or use_spa or use_sem, 'Should use at least one relation'
@@ -142,6 +143,11 @@ class RelationEncoder(BaseEncoder):
             conv_layer=conv_layer,
             conv_type=conv_type
         ) if use_spa else None
+
+        # Prepare fully-connected graph
+        self.implicit_graph = (
+            torch.ones(num_objs, num_objs) - torch.eye(num_objs)
+        ).float().to(self.device)
         
     def forward(self, batch, graph_alpha=False):
         """
@@ -175,10 +181,11 @@ class RelationEncoder(BaseEncoder):
 
         # Implicit graph
         if self.implicit_encoder:
-            # Prepare fully-connected graph
-            graph = torch.ones_like(batch['graph']) - torch.eye(batch['graph'].shape[1])
-            graph = graph.float().to(self.device)
-            new_v = new_v + self.implicit_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+            # graph = torch.ones_like(batch['graph']) - torch.eye(batch['graph'].shape[1])
+            # graph = graph.float().to(self.device)
+            new_v = new_v + self.implicit_encoder(
+                v, self.implicit_graph.repeat(v.shape[0], 1, 1), graph_alpha
+            ) # [batch, num_objs, v_dim]
 
         # Spatial graph
         if self.spatial_encoder:
