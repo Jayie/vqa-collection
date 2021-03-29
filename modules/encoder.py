@@ -177,26 +177,27 @@ class RelationEncoder(BaseEncoder):
         q = self.q_net(q) # [batch, hidden_dim]
 
         # Get relation-aware visual feature
-        new_v = torch.zeros_like(v)
-
+        output_v = torch.zeros_like(v)
+        g_att = []
         # Implicit graph
         if self.implicit_encoder:
             # graph = torch.ones_like(batch['graph']) - torch.eye(batch['graph'].shape[1])
             # graph = graph.float().to(self.device)
-            new_v = new_v + self.implicit_encoder(
+            new_v = self.implicit_encoder(
                 v, self.implicit_graph.repeat(v.shape[0], 1, 1), graph_alpha
             ) # [batch, num_objs, v_dim]
+            if graph_alpha: new_v, g_att = new_v
+            output_v += new_v
 
         # Spatial graph
         if self.spatial_encoder:
             graph = batch['graph'].float().to(self.device)
-            new_v = new_v + self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+            new_v = self.spatial_encoder(v, graph, graph_alpha) # [batch, num_objs, v_dim]
+            if graph_alpha: new_v, g_att = new_v
+            output_v += new_v
         
-        v = new_v
-        if graph_alpha:
-            v, g_att = v
-            return g_att
-        return v, q, v_att
+        if graph_alpha: return g_att
+        return output_v, q, v_att
 
 
 class CaptionEncoder(BaseEncoder):
