@@ -126,7 +126,7 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_train=True,
-            dataset_type='select'
+            dataset_type='select' if args.select_path != 0 else 'all'
         )
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
         val_data = set_dataset(
@@ -137,7 +137,7 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='select'
+            dataset_type='select' if args.select_path != 0 else 'all'
         )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
 
@@ -190,7 +190,7 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='select'
+            dataset_type='select' if args.select_path != 0 else 'all'
         )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
         writer = SummaryWriter(comment=args.comment+'_val')
@@ -224,18 +224,6 @@ def main():
             },
             metric_dict=metric
         )
-
-    elif args.mode == 'sample_vqa':
-        val_data = set_dataset(load_dataset=args.load_path, feature_path=args.feature_path, vocab_list=vocab_list, ans_list=ans_list, is_val=True, dataset_type='vqac')
-        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=True)
-        output = sample_vqa(model, val_loader, ans_list, args.device, logger=logger)
-        
-        with open(os.path.join(save_path, 'count.json'), 'w') as f:
-            f.write(json.dumps(output))
-
-        plt.barh(list(output.keys()), output.values())
-        plt.savefig(os.path.join(save_path, 'count.png'))
-        plt.show()
 
 
 if __name__ == '__main__':
