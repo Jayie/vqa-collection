@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--ans_path',type=str, default='../data/answer_candidate.txt', help='path for answer candidate list')
     parser.add_argument('--load_path', type=str, default='../annot', help='path for loading dataset')
     parser.add_argument('--feature_path', type=str, default='../../COCO_feature_36', help='path for COCO image features')
+    parser.add_argument('--select_path', type=str, default='../annot/select_caption/most_relevant.pkl', help='path for caption selection strategy')
     parser.add_argument('--graph_path', type=str, default='../../COCO_graph_36', help='path for COCO spatial relation graphs')
     parser.add_argument('--index_path', type=str, default='../annot/index.pkl', help='path for index of different answer types')
     parser.add_argument('--seed', type=int, default=10, help='random seed')
@@ -117,26 +118,26 @@ def main():
 
     if args.mode == 'train':
         # setup training and validation datasets
-        print('loading train dataset', end='... ')
         train_data = set_dataset(
             load_dataset=args.load_path,
             feature_path=args.feature_path,
+            caption_id_path=args.select_path,
             graph_path=args.graph_path,
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_train=True,
-            dataset_type='vqac'
+            dataset_type='select'
         )
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
-        print('loading valid dataset', end='... ')
         val_data = set_dataset(
             load_dataset=args.load_path,
             feature_path=args.feature_path,
+            caption_id_path=args.select_path,
             graph_path=args.graph_path,
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='vqac'
+            dataset_type='select'
         )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
 
@@ -181,15 +182,15 @@ def main():
             ans_index = pickle.load(f)
 
         # setup validation dataset
-        print('loading valid dataset', end='... ')
         val_data = set_dataset(
             load_dataset=args.load_path,
             feature_path=args.feature_path,
+            caption_id_path=args.select_path,
             graph_path=args.graph_path,
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='vqac'
+            dataset_type='select'
         )
         val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
         writer = SummaryWriter(comment=args.comment+'_val')

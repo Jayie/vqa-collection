@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import pickle
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -11,114 +12,124 @@ from util.relation import relation_graph
 # TODO: Rewrite preprocessing.py
 #################################################################
 
-def set_dataset(load_dataset, feature_path, vocab_list, ans_list, dataset_type='vqa', ans_type='', is_train=False, is_val=False, graph_path=''):
+def set_dataset(
+        load_path: str,
+        feature_path: str,
+        vocab_list: list,
+        ans_list: list,
+        caption_id_path: str='',
+        graph_path: str='',
+        is_train: bool=False,
+        is_val: bool=False,
+        dataset_type: str='select',
+    ):
+
     dataset_types = {
-        'vqa':VQADataset,
-        'vqac': VQACaptionDataset
+        'select': VQACaptionDataset,
+        'all': VQACaptionAllDataset,
     }
 
-    if is_train:
-        dataset_name = 'train2014'
-    elif is_val:
-        dataset_name = 'val2014'
+    if is_train: dataset_name = 'train2014'
+    elif is_val: dataset_name = 'val2014'
 
-    load_dataset = os.path.join(load_dataset, dataset_name)
+    load_path = os.path.join(load_path, dataset_name)
     feature_path = os.path.join(feature_path, dataset_name)
     graph_path = os.path.join(graph_path, dataset_name) if graph_path != '' else ''
-    return dataset_types[dataset_type](load_dataset, feature_path, vocab_list, ans_list, ans_type, graph_path)
+    return dataset_types[dataset_type](
+                                        load_path=load_path,
+                                        feature_path=feature_path,
+                                        dataset_name=dataset_name,
+                                        vocab_list=vocab_list,
+                                        ans_list=ans_list,
+                                        caption_id_path=caption_id_path,
+                                        graph_path=graph_path,
+                                      )
 
 
-class VQADataset(Dataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=''):
+class VQACaptionDataset(Dataset):
+    """For each Q-A pair, select one caption."""
+    def __init__(self,
+                 load_path: str,
+                 feature_path: str,
+                 dataset_name: str,
+                 vocab_list: list,
+                 ans_list: list,
+                 caption_id_path: str,
+                 graph_path: str='',
+    ):
+        """
+        load_path: path for VQA annotations
+        feature_path: path for COCO image features
+        dataset_name: train2014 / val2014
+        vocab_list: GloVe vocabulary list
+        ans_list: answer candidate list
+        caption_id_path: path for caption ID for each Q-A pair
+        graph_path: path for COCO graph (default = '' i.e. don't use graph)
+        """
+            
         t = time.time()
-        print('loading dataset...', end=' ')
-
-        # If ans_type is not empty: load the question IDs of certain answer type
-        self.q_id = None
-        if ans_type != '':
-            with open(f'{load_dataset}_answer_type.json') as f: self.q_id = json.load(f)[ans_type]
-        
-        self.questions = self.load_dataset(load_dataset, 'questions')
-        self.answers = self.load_dataset(load_dataset, 'answers')
-        
-        self.vocab_list = vocab_list
-        self.ans_list = ans_list
+        print(f'loading {dataset_name} dataset...', end=' ')
+        with open(os.path.join(f'{load_path}_questions.json')) as f:
+            self.questions = json.load(f)['data']
+        with open(os.path.join(f'{load_path}_answers.json')) as f:
+            self.answers = json.load(f)['data']
+        with open(os.path.join(f'{load_path}_all_captions.json')) as f:
+            self.captions = json.load(f)
+        with open(caption_id_path, 'rb') as f:
+            self.caption_id = pickle.load(f)
+            
         self.feature_path = feature_path
         self.graph_path = graph_path
+        self.vocab_list = vocab_list
+        self.ans_list = ans_list
+        
         t = time.time() - t
         print(f'ready ({t:.2f} sec).')
-    
-    def __len__(self):
-        if self.q_id == None:
-            return len(self.questions)
-        return len(self.q_id)
-    
-    def load_dataset(self, path, dataset_type):
-        with open(f'{path}_{dataset_type}.json') as f:
-            dataset = json.load(f)['data']
         
-        if self.q_id == None: return dataset
-        output = []
-        for i in self.q_id:
-            output.append(dataset[i])
-        return output
+    def __len__(self): return len(self.questions)
     
     def load_answer(self, index):
         answers = self.answers[index]
         output = np.array([0]*len(self.ans_list))
-        for key, value in answers.items():
-            key = int(key)
-            output[key] = min(value, 3)
-            
-        return np.divide(output, 3).tolist()
-            
+        for key, value in self.answers[index].items():
+            output[int(key)] = min(value, 3)
+        return np.divide(output, 3)
+        
     def __getitem__(self, index):
-        img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
+        img_file = self.questions[index]['img_file']
+        img = np.load(os.path.join(self.feature_path, img_file))
+        img_id = str(int(img_file[-16:-4]))
         output = {
             'id': index,
             'img': img['x'],
             'q': np.array(self.questions[index]['q']),
-            'a': np.array(self.load_answer(index)),
+            'a': self.load_answer(index),
+            'c': np.array(self.captions[img_id]['c'][self.caption_id[index]])
         }
         if self.graph_path != '':
-            graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
-            output['graph'] = graph['graph']
+            output['graph'] = np.load(os.path.join(self.graph_path, img_file))['graph']
         return output
 
+class VQACaptionAllDataset(VQACaptionDataset):
+    """Q-A pairs with 5 captions"""
+    def __init__(self,
+                 load_path: str,
+                 feature_path: str,
+                 dataset_name: str,
+                 vocab_list: list,
+                 ans_list: list,
+                 caption_id_path: str,
+                 graph_path: str='',
+    ):
+        """
+        load_path: path for VQA annotations
+        feature_path: path for COCO image features
+        dataset_name: train2014 / val2014
+        vocab_list: GloVe vocabulary list
+        ans_list: answer candidate list
+        caption_id_path: path for caption ID for each Q-A pair
+        graph_path: path for COCO graph (default = '' i.e. don't use graph)
+        """
 
-class VQACaptionDataset(VQADataset):
-    def __init__(self, load_dataset, feature_path, vocab_list, ans_list, ans_type='', graph_path=''):
-        t = time.time()
-        print('loading dataset...', end=' ')
-
-        # If ans_type is not empty: load the question IDs of certain answer type
-        self.q_id = None
-        if ans_type != '':
-            with open(f'{load_dataset}_answer_type.json') as f: self.q_id = json.load(f)[ans_type]
-        
-        self.questions = self.load_dataset(load_dataset, 'questions')
-        self.answers = self.load_dataset(load_dataset, 'answers')
-        self.captions = self.load_dataset(load_dataset, 'captions')
-        
-        self.vocab_list = vocab_list
-        self.ans_list = ans_list
-        self.feature_path = feature_path
-        self.graph_path = graph_path
-        t = time.time() - t
-        print(f'dataset ready ({t:.2f} sec).')
-            
-    def __getitem__(self, index):
-        img = np.load(os.path.join(self.feature_path, self.questions[index]['img_file']))
-        output = {
-            'id': index,
-            'img': img['x'],
-            'q': np.array(self.questions[index]['q']),
-            'c': np.array(self.captions[index]['c']),
-            'cap_len': self.captions[index]['cap_len'],
-            'a': np.array(self.load_answer(index)),
-        }
-
-        if self.graph_path != '':
-            graph = np.load(os.path.join(self.graph_path, self.questions[index]['img_file']))
-            output['graph'] = graph['graph']
-        return output
+        pass
+        # TODO

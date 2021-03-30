@@ -18,7 +18,7 @@ def similarity(a, b):
     for i in range(a_len):
         score = nn.functional.cosine_similarity(b, a[i,:].unsqueeze(0))
         score = torch.max(score).item()
-        print(i, score)
+        # print(i, score)
         output += score
     return output / a_len
 
@@ -39,4 +39,5 @@ def select_caption(question, answer, captions):
         if temp > best_score:
             best_index = i
             best_score = temp
+            print(i)
     return best_index
