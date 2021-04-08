@@ -139,6 +139,7 @@ class VQACaptionAllDataset(VQADataset):
         vqa_index, cap_index = index // 5, index % 5
         output = self.get_vqa(vqa_index)
         output['c'] = output['c'] = np.array(self.captions[img_id]['c'][cap_index])
+        output['cap_len'] = self.captions[img_id]['cap_len'][cap_index]
         return output
 
 
@@ -173,4 +174,5 @@ class VQACaptionDataset(VQACaptionAllDataset):
         img_id = str(int(self.questions[index]['img_file'][-16:-4]))
         output = self.get_vqa(index)
         output['c'] = np.array(self.captions[img_id]['c'][self.caption_id[index]])
+        output['cap_len'] = self.captions[img_id]['cap_len'][self.caption_id[index]]
         return output
