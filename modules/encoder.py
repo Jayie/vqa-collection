@@ -117,9 +117,9 @@ class RelationEncoder(BaseEncoder):
                  att_type: str = 'base',
                  conv_layer: int = 1,
                  conv_type: str = 'corr',
-                 use_imp: bool = True,
-                 use_spa: bool = False,
-                 use_sem: bool = True,
+                 use_imp: bool = False,
+                 use_spa: bool = True,
+                 use_sem: bool = False,
                  num_objs: int = 36
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
