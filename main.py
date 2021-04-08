@@ -119,7 +119,7 @@ def main():
     if args.mode == 'train':
         # setup training and validation datasets
         train_data = set_dataset(
-            load_dataset=args.load_path,
+            load_path=args.load_path,
             feature_path=args.feature_path,
             caption_id_path=args.select_path,
             graph_path=args.graph_path,
@@ -130,7 +130,7 @@ def main():
         )
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
         val_data = set_dataset(
-            load_dataset=args.load_path,
+            load_path=args.load_path,
             feature_path=args.feature_path,
             caption_id_path=args.select_path,
             graph_path=args.graph_path,
@@ -183,7 +183,7 @@ def main():
 
         # setup validation dataset
         val_data = set_dataset(
-            load_dataset=args.load_path,
+            load_path=args.load_path,
             feature_path=args.feature_path,
             caption_id_path=args.select_path,
             graph_path=args.graph_path,
