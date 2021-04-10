@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from .gcn import GCN
 from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
-from .attention import ConcatAttention, MultiplyAttention
+from .attention import set_att
 
 
 # This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
@@ -14,11 +14,7 @@ from .attention import ConcatAttention, MultiplyAttention
 #
 # Code reference: https://github.com/hengyuan-hu/bottom-up-attention-vqa
 
-def set_att(att_type):
-    return {
-        'base': ConcatAttention,
-        'new': MultiplyAttention
-    }[att_type]
+
 
 class BaseEncoder(nn.Module):
     """

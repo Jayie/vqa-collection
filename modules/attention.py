@@ -7,6 +7,14 @@ from torch.nn.utils.weight_norm import weight_norm
 
 from .modules import FCNet
 
+
+def set_att(att_type):
+    return {
+        'base': ConcatAttention,
+        'new': MultiplyAttention
+    }[att_type]
+
+
 class ConcatAttention(nn.Module):
     """
     Concat attention module.
