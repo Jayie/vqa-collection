@@ -87,7 +87,7 @@ def train(  model, lr,
         print('Use', torch.cuda.device_count(), 'GPUs.')
         model = nn.DataParallel(model)
 
-    model.to(device)
+    model = model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0

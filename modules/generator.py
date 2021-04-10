@@ -124,7 +124,7 @@ class BaseDecoder(DecoderModule):
         alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
 
         # We don't decode at the <end> position
-        decode_len = (cap_len - 1).tolist()
+        decode_len = (cap_len - 1)
 
         # This list if for saving the batch size for each time step
         batches = []
@@ -158,8 +158,8 @@ class BaseDecoder(DecoderModule):
             'predict': output[restore_id,:,:],
             'target': sort_caption[:, 1:], # Since decode starting with <start>, the targets are all words after <start>
             'decode_len': decode_len,
-            'batches': batches,
             'alpha': alphas[restore_id,:,:],
+            # 'batches': batches,
         }
 
 
@@ -175,7 +175,8 @@ class BUTDDecoder(DecoderModule):
                  max_len: int,
                  device: str,
                  dropout: float = 0.5,
-                 rnn_type: str = 'GRU'
+                 rnn_type: str = 'GRU',
+                 att_type: str = 'base',
     ):
         """Input:
             For question embedding:
@@ -207,7 +208,7 @@ class BUTDDecoder(DecoderModule):
         self.language_rnn = rnn_cls(input_size=v_dim + hidden_dim, hidden_size=hidden_dim)
 
         self.embedding = nn.Embedding(ntoken, embed_dim)
-        self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
+        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
