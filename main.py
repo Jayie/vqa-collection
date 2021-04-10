@@ -39,8 +39,8 @@ def parse_args():
 
     # model settings
     parser.add_argument('--model', type=str, default='base', help='model type')
-    parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU or LSTM, default = GRU)')
-    parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base')
+    parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU/LSTM, default = GRU)')
+    parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=512, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
@@ -59,6 +59,10 @@ def parse_args():
     parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
     parser.add_argument('--conv_type', type=str, default='corr', help='GCN type (base/direct/corr, default = corr)')
 
+    # decoder settings
+    parser.add_argument('--decoder_type', type=str, default='simple', help='decoder type (base/butd, default = base)')
+
+    # training/validating process settings
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
     parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
@@ -111,6 +115,7 @@ def main():
                         att_type=args.att_type,
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
+                        decoder_type=args.decoder_type
                 )
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)

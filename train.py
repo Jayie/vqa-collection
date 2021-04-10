@@ -120,21 +120,22 @@ def train(  model, lr,
 
             # For captioning
             if caption != None:
-                caption = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
-                target = pack_padded_sequence(batch['c'].to(device), caption['decode_len'], batch_first=True).data
-                loss_cap = ce_for_language_model(caption, target)
+                predict = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
+                target = pack_padded_sequence(caption['target'], caption['decode_len'], batch_first=True).data
+                loss_cap = ce_for_language_model(predict, target)
                 loss += loss_cap
 
                 # Write to Tensorboard
                 writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
                 
                 # Delete used objects
-                caption.detach()
+                predict.detach()
                 target.detach()
                 loss_cap.detach()
-                del caption
+                del predict
                 del target
                 del loss_cap
+                del caption
             
 
             ##############################################################################################################################
@@ -144,7 +145,7 @@ def train(  model, lr,
             #
             # TODO: Reconstruct dataset and dataloader for this model
             ##############################################################################################################################
-
+            
             # Back prop.
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)

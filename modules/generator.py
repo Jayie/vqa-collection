@@ -6,11 +6,166 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from torch.nn.utils.weight_norm import weight_norm
 
 from .modules import FCNet
-from .attention import ConcatAttention, MultiplyAttention
+from .attention import set_att
 
-class CaptionDecoder(nn.Module):
+
+def set_decoder(  decoder_type: str,
+                    ntoken: int,
+                    embed_dim: int,
+                    hidden_dim: int,
+                    v_dim: int,
+                    max_len: int,
+                    device: str,
+                    dropout: float = 0.5,
+                    rnn_type: str = 'GRU',
+                    att_type: str = 'base',
+    ):
+    return {
+        'base': BaseDecoder,
+        'butd': BUTDDecoder
+    }[decoder_type](
+        ntoken=ntoken,
+        embed_dim=embed_dim,
+        hidden_dim=hidden_dim,
+        v_dim=v_dim,
+        max_len=max_len,
+        device=device,
+        dropout=dropout,
+        rnn_type=rnn_type,
+        att_type=att_type
+    )
+
+
+class DecoderModule(nn.Module):
+    def __init__(self): super().__init__()
+
+    def init_hidden(self, batch):
+        """Initialize hidden states."""
+        init = torch.zeros((batch, self.hidden_dim)).to(self.device)
+        if self.rnn_type == 'LSTM': return (init, init)
+        else: return init
+
+    def select_hidden(self, h, batch):
+        if self.rnn_type == 'LSTM': return (h[0][:batch], h[1][:batch])
+        else: return h[:batch]
+
+    def forward(self, v, caption, cap_len): return
+
+
+class BaseDecoder(DecoderModule):
     """
-    Caption generator mentioned in 'Bottom-Up and Top-Down Attention for Image Captioning and Visual Question Answering'
+    Base generator based on "Show, Attend and Tell"
+    """
+    def __init__(self,
+                 ntoken: int,
+                 embed_dim: int,
+                 hidden_dim: int,
+                 v_dim: int,
+                 max_len: int,
+                 device: str,
+                 dropout: float = 0.5,
+                 rnn_type: str = 'GRU',
+                 att_type: str = 'base',
+    ):
+        """Input:
+            For question embedding:
+                ntoken: number of tokens (i.e. size of vocabulary)
+                embed_dim: dimension of caption embedding
+                hidden_dim: dimension of hidden layers
+            For attention:
+                v_dim: dimension of image features
+                att_fc_dim: dimension of attention fc layer
+            For output:
+                max_len: the maximal length of captions
+            Others:
+                device: device
+                dropout: dropout (default = 0.5)
+                rnn_type: choose the type of RNN (default = GRU)
+        """
+        super().__init__()
+        self.rnn_type = rnn_type
+        self.hidden_dim = hidden_dim
+        self.max_len = max_len
+        self.ntoken = ntoken
+        self.device = device
+
+        # Prepare word embedding layer and sentence embedding layer.
+        # Since we need to compute the attention for each time step, we use RNN cells here.
+        assert rnn_type == 'LSTM' or rnn_type == 'GRU'
+        rnn_cls = nn.LSTMCell if rnn_type =='LSTM' else nn.GRUCell
+        self.rnn = rnn_cls(input_size=embed_dim+v_dim, hidden_size=hidden_dim)
+
+        self.embedding = nn.Embedding(ntoken, embed_dim)
+        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
+        self.fcnet = nn.Linear(hidden_dim, ntoken)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, v, caption, cap_len):
+        # Flatten image features
+        v_mean = v.mean(1).to(self.device) # [batch, v_dim]
+        num_objs = v.size(1)
+
+        # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
+        cap_len, sort_id = cap_len.sort(dim=0, descending=True)
+        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
+        sort_caption = caption[sort_id]
+        v = v[sort_id]
+        v_mean = v_mean[sort_id]
+
+        # Encode captions
+        caption = self.embedding(sort_caption) # [batch, max_len, embed_dim]
+
+        # Initialize RNN states
+        batch = caption.size(0)
+        h = self.init_hidden(batch)
+
+        # Create tensor to hold the caption embedding after all time steps
+        output = torch.zeros(batch, self.max_len, self.ntoken).to(self.device)
+        alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
+
+        # We don't decode at the <end> position
+        decode_len = (cap_len - 1).tolist()
+
+        # This list if for saving the batch size for each time step
+        batches = []
+        # For each time step:
+        for t in range(max(decode_len)):
+            # Only generate captions which is longer than t (ignore <pad>)
+            batch_t = sum([l > t for l in decode_len])
+            batches.append(batch_t)
+            h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
+            
+            # Attention of image considering hidden state
+            h0 = h[0] if self.rnn_type == 'LSTM' else h
+            att = self.attention(v[:batch_t], h0) # [batch, num_objs, 1]
+            att_v = (att * v[:batch_t]).sum(1) # [batch, v_dim]
+            att = att.squeeze()
+
+            # Decode
+            h = self.rnn(torch.cat([caption[:batch_t,t,:], att_v], dim=1), h)
+            h0 = h[0] if self.rnn_type == 'LSTM' else h
+
+            # Predict the possible output word
+            h0 = self.fcnet(h0) # [batch_t, ntoken]
+            
+            # Save the results
+            output[:batch_t, t, :] = h0
+            alphas[:batch_t, t, :] = att
+        
+        # Softmax
+        output = self.softmax(output)
+        return {
+            'predict': output[restore_id,:,:],
+            'target': sort_caption[:, 1:], # Since decode starting with <start>, the targets are all words after <start>
+            'decode_len': decode_len,
+            'batches': batches,
+            'alpha': alphas[restore_id,:,:],
+        }
+
+
+class BUTDDecoder(DecoderModule):
+    """
+    Caption decoder mentioned in 'Bottom-Up and Top-Down Attention for Image Captioning and Visual Question Answering'
     """
     def __init__(self,
                  ntoken: int,
@@ -53,23 +208,9 @@ class CaptionDecoder(nn.Module):
 
         self.embedding = nn.Embedding(ntoken, embed_dim)
         self.attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
-        self.h1_fcnet = FCNet(in_dim=hidden_dim, out_dim=hidden_dim)
-        self.h2_fcnet = FCNet(in_dim=hidden_dim, out_dim=ntoken)
+        self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
+        self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
-
-    def init_hidden(self, batch):
-        """Initialize hidden states."""
-        init = torch.zeros((batch, self.hidden_dim)).to(self.device)
-        if self.rnn_type == 'LSTM':
-            return (init, init)
-        else:
-            return init
-
-    def select_hidden(self, h, batch):
-        if self.rnn_type == 'LSTM':
-            return (h[0][:batch], h[1][:batch])
-        else:
-            return h[:batch]
 
     def decode(self, v, prev, h1, h2):
         """Decode process
@@ -197,7 +338,7 @@ class CaptionDecoder(nn.Module):
         output = self.softmax(output)
         return {
             'predict': output[restore_id,:,:],
-            'target': caption,
+            'target': sort_caption[:, 1:], # Since decode starting with <start>, the targets are all words after <start>
             'decode_len': decode_len,
             'batches': batches,
             'alpha': alphas[restore_id,:,:],

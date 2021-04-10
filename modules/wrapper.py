@@ -1,7 +1,7 @@
 import torch.nn as nn
 import modules.encoder as encoder
 import modules.predictor as predictor
-from modules.generator import CaptionDecoder
+from modules.generator import set_decoder
 from modules.modules import PretrainedWordEmbedding
 
 def use_pretrained_embedding(model, vocab_path: str, device: str):
@@ -46,6 +46,7 @@ class Wrapper(nn.Module):
 
         # If VQA module exists: get prediction
         predict = self.predictor(v, w) if self.predictor!=None else None
+        w.detach()
         del w
 
         # If Caption module exists: generate caption
@@ -79,6 +80,7 @@ def set_model(  model_type: str,
                 att_type: str = 'base',
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
+                decoder_type: str = 'base'
 ):
     def set_encoder():
         if model_type == 'conv':
@@ -145,7 +147,8 @@ def set_model(  model_type: str,
 
     def set_generator():
         if model_type in ['base', 'conv']: return None
-        return CaptionDecoder(
+        return set_decoder(
+            decoder_type=decoder_type,
             ntoken=ntoken,
             embed_dim=embed_dim,
             hidden_dim=hidden_dim,
@@ -154,6 +157,7 @@ def set_model(  model_type: str,
             device=device,
             dropout=dropout,
             rnn_type=rnn_type,
+            att_type=att_type
         )
 
     return Wrapper(device, set_encoder(), set_predictor(), set_generator())
