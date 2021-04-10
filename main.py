@@ -60,6 +60,7 @@ def parse_args():
 
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='simple', help='decoder type (base/butd, default = base)')
+    parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
 
     # training/validating process settings
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
@@ -103,6 +104,7 @@ def main():
                         v_dim=args.v_dim,
                         embed_dim=args.embed_dim,
                         hidden_dim=args.hidden_dim,
+                        decoder_hidden_dim=args.decoder_hidden_dim,
                         rnn_layer=args.rnn_layer,
                         ans_dim=len(ans_list),
                         cls_layer=args.cls_layer,
