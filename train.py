@@ -5,7 +5,6 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -120,21 +119,14 @@ def train(  model, lr,
 
             # For captioning
             if caption != None:
-                caption['decode_len'] = caption['decode_len'].tolist()
-                predict = pack_padded_sequence(caption['predict'], caption['decode_len'], batch_first=True).data
-                target = pack_padded_sequence(caption['target'], caption['decode_len'], batch_first=True).data
-                loss_cap = ce_for_language_model(predict, target)
+                loss_cap = ce_for_language_model(caption['predict'], caption['target'])
                 loss += loss_cap
 
                 # Write to Tensorboard
                 writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
                 
                 # Delete used objects
-                predict.detach()
-                target.detach()
                 loss_cap.detach()
-                del predict
-                del target
                 del loss_cap
                 del caption
             

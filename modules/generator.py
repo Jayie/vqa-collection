@@ -124,7 +124,7 @@ class BaseDecoder(DecoderModule):
         alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
 
         # We don't decode at the <end> position
-        decode_len = (cap_len - 1)
+        decode_len = (cap_len - 1).tolist()
 
         # This list if for saving the batch size for each time step
         batches = []
@@ -154,12 +154,13 @@ class BaseDecoder(DecoderModule):
         
         # Softmax
         output = self.softmax(output)
+        
+        # Since decode starting with <start>, the targets are all words after <start>
+        sort_caption = sort_caption[:,1:]
+        
         return {
-            'predict': output[restore_id,:,:],
-            'target': sort_caption[:, 1:], # Since decode starting with <start>, the targets are all words after <start>
-            'decode_len': decode_len,
-            'alpha': alphas[restore_id,:,:],
-            # 'batches': batches,
+            'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
+            'target': pack_padded_sequence(sort_caption, decode_len, batch_first=True).data,
         }
 
 
