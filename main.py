@@ -44,7 +44,6 @@ def parse_args():
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=512, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
-    parser.add_argument('--att_fc_dim', type=int, default=512, help='the dimension of fc layer in the attention module (default = 512)')
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
@@ -105,7 +104,6 @@ def main():
                         embed_dim=args.embed_dim,
                         hidden_dim=args.hidden_dim,
                         rnn_layer=args.rnn_layer,
-                        att_fc_dim=args.att_fc_dim,
                         ans_dim=len(ans_list),
                         cls_layer=args.cls_layer,
                         c_len=args.c_len,
@@ -221,7 +219,6 @@ def main():
                 'name': args.comment,
                 'embed_dim': args.embed_dim,
                 'hidden_dim': args.hidden_dim,
-                'att_fc_dim': args.att_fc_dim,
                 'rnn_layer': args.rnn_layer,
                 'cls_layer': args.cls_layer,
                 'gcn_layer': args.conv_layer,

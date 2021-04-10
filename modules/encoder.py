@@ -26,7 +26,6 @@ class BaseEncoder(nn.Module):
                  hidden_dim: int,
                  rnn_layer: int,
                  v_dim: int,
-                 att_fc_dim: int,
                  device: str,
                  dropout: float = 0.5,
                  rnn_type: str = 'GRU',
@@ -40,7 +39,6 @@ class BaseEncoder(nn.Module):
                 rnn_layer: number of RNN layers
             For attention:
                 v_dim: dimension of image features
-                att_fc_dim: dimension of attention fc layer
             Others:
                 device: device
                 dropout: dropout (default = 0.5)
@@ -63,7 +61,7 @@ class BaseEncoder(nn.Module):
         )
 
         # Attention layer for image features based on questions
-        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=att_fc_dim)
+        self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
 
         # Non-linear layers for image features
         self.q_net = FCNet(hidden_dim, hidden_dim)
@@ -106,7 +104,6 @@ class RelationEncoder(BaseEncoder):
                  hidden_dim: int,
                  rnn_layer: int,
                  v_dim: int,
-                 att_fc_dim: int,
                  device: str,
                  dropout: float = 0.5,
                  rnn_type: str = 'GRU',
@@ -118,7 +115,7 @@ class RelationEncoder(BaseEncoder):
                  use_sem: bool = False,
                  num_objs: int = 36
     ):
-        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
+        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, device, dropout, rnn_type, att_type)
         assert use_imp or use_spa or use_sem, 'Should use at least one relation'
 
         # Prepare GCN
@@ -203,14 +200,13 @@ class CaptionEncoder(BaseEncoder):
                  hidden_dim: int,
                  rnn_layer: int,
                  v_dim: int,
-                 att_fc_dim: int,
                  c_len: int,
                  device: str,
                  dropout: float = 0.5,
                  rnn_type: str = 'GRU',
                  neg_slope: float = 0.01,
     ):
-        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, att_fc_dim, device, dropout, rnn_type, att_type)
+        super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, device, dropout, rnn_type, att_type)
         
         self.v_net = LReLUNet(v_dim, hidden_dim, neg_slope)
         self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
@@ -227,7 +223,7 @@ class CaptionEncoder(BaseEncoder):
         )
 
         # Attention layer for image features based on caption embedding
-        self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim, fc_dim=att_fc_dim)
+        self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim)
 
     def forward(self, batch):
         """
