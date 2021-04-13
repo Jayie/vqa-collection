@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import modules.encoder as encoder
 import modules.predictor as predictor
