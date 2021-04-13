@@ -49,15 +49,14 @@ class Wrapper(nn.Module):
         predict = self.predictor(v, w) if self.predictor!=None else None
 
         c = None
-        if type(w) != torch.Tensor:
-            w, c = w
+        if type(w) != torch.Tensor: w, c = w
         w.detach()
         del w
 
         # If Caption module exists: generate caption
         caption = None
         if self.generator:
-            c = batch['c'].to(self.device) if not c else c
+            c = batch['c'].to(self.device) if c is None else c
             cap_len = batch['cap_len'].to(self.device)
             caption = self.generator(v, c, cap_len)
 
