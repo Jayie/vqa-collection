@@ -49,7 +49,7 @@ class Wrapper(nn.Module):
         predict = self.predictor(v, w) if self.predictor!=None else None
 
         c = None
-        if type(predict) != torch.Tensor:
+        if type(w) != torch.Tensor:
             w, c = w
         w.detach()
         del w
