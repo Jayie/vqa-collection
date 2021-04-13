@@ -32,18 +32,14 @@ class BasePredictor(nn.Module):
             layer=cls_layer, dropout=dropout
         )
 
-    def forward(self, v, q):
-        """Input:
-            v: [batch, num_objs, v_dim]
-            q: [batch, hidden_dim]
-        """
-        v = v.sum(1) # [batch, v_dim]
+    def forward(self, batch):
+        v = batch['v'].sum(1) # [batch, v_dim]
 
         # FC layers
         v = self.v_net(v) # [batch, hidden_dim]
         
         # Fuse visual and question features (multiplication here)
-        joint = q * v # [batch, hidden_dim]
+        joint = batch['q'] * v # [batch, hidden_dim]
         
         return self.classifier(joint)
 
@@ -53,6 +49,8 @@ class PredictorwithCaption(nn.Module):
     This is for the system described in 'Generating Question Relevant Captions to Aid Visual Question Answering' (https://arxiv.org/abs/1906.00513)
     """
     def __init__(self,
+                    embed_dim: int,
+                    c_len: int,
                     v_dim: int,
                     hidden_dim: int,
                     ans_dim: int,
@@ -62,9 +60,22 @@ class PredictorwithCaption(nn.Module):
                     neg_slope: float = 0.01,
     ):
         super().__init__()
-
+        
+        # Caption embedding module
+        self.v_net = LReLUNet(v_dim, hidden_dim, neg_slope)
+        self.caption_embedding = CaptionEmbedding(
+            v_dim=hidden_dim,
+            q_dim=hidden_dim,
+            c_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            max_len=c_len,
+            device=device,
+            dropout=dropout
+        )
+        self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
+        
         # For caption-attended visual features
-        self.vq_net = LReLUNet(v_dim, hidden_dim, neg_slope)
+        self.vq_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         self.joint_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
         self.vqc_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
 
@@ -74,26 +85,24 @@ class PredictorwithCaption(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, v, w):
-        """Input:
-            v: [batch, num_objs, v_dim]
-            w:
-                q: [batch, hidden_dim]
-                c: [batch, hidden_dim]
-        """
-        q, c = w
-        del w
+    def forward(self, batch):
+        batch['v'] = self.v_net(batch['v'])
+
+        # Caption embedding
+        v = batch['v'].sum(1) # [batch, v_dim]
+        c, _ = self.caption_embedding(v, batch['q'], batch['c'], batch['cap_len']) # [batch, hidden_dim]
 
         # Produce caption-attended visual features
-        v = self.vq_net(v) # [batch, num_objs, hidden_dim]
-        joint = self.joint_net(c.unsqueeze(1).repeat(1, v.size(1), 1) * v)
+        v = self.vq_net(v) # [batch, hidden_dim]
+        c = self.c_net(c) # [batch, hidden_dim]
+        joint = self.joint_net(c * v)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
-        v = (joint * v).sum(1) # [batch, hidden_dim]
+        v = (joint.unsqueeze(1).repeat(1, batch['v'].size(1), 1) * batch['v']).sum(1) # [batch, hidden_dim]
 
         # To better incorporate the information from the captions into the VQA process,
         # add the caption feature ot the attended image features,
         # and then element-wise multiply by the question features.
         v = self.vqc_net(v) # [batch, hidden_dim]
-        joint = q * (v + c) # [batch, hidden_dim]
+        joint = batch['q'] * (v + c) # [batch, hidden_dim]
 
         return self.classifier(joint) # [batch, ans_dim]

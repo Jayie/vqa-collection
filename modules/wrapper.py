@@ -40,32 +40,16 @@ class Wrapper(nn.Module):
         # Else: get original features
         if self.encoder != None:
             self.gradients = []
-            v, w, att = self.encoder(batch)
-
-        else:
-            v, w, att = (batch['img'].to(self.device), None, None)
-
-        # If VQA module exists: get prediction
-        predict = self.predictor(v, w) if self.predictor!=None else None
-
-        c = None
-        if type(w) != torch.Tensor: w, c = w
-        w.detach()
-        del w
+            batch = self.encoder(batch)
+        else: batch = {'v': batch['img'].to(self.device)}
 
         # If Caption module exists: generate caption
-        caption = None
-        if self.generator:
-            c = batch['c'].to(self.device) if c is None else c
-            cap_len = batch['cap_len'].to(self.device)
-            caption = self.generator(v, c, cap_len)
-
-            c.detach()
-            cap_len.detach()
-            del c
-            del cap_len
+        caption = self.generator(batch['v'], batch['c'], batch['cap_len'], batch['c_target']) if self.generator else None
         
-        return predict, caption, att
+        # If VQA module exists: get prediction
+        predict = self.predictor(batch) if self.predictor else None
+        
+        return predict, caption, batch['v_att']
 
 def set_model(  model_type: str,
                 ntoken: int = 0,
@@ -101,19 +85,19 @@ def set_model(  model_type: str,
                 conv_type=conv_type,
                 conv_layer=conv_layer
             )
-        if model_type == 'q-cap':
-            return encoder.CaptionEncoder(
-                ntoken=ntoken,
-                embed_dim=embed_dim,
-                hidden_dim=hidden_dim,
-                rnn_layer=rnn_layer,
-                v_dim=v_dim,
-                c_len=c_len,
-                device=device,
-                dropout=dropout,
-                rnn_type=rnn_type,
-                neg_slope=neg_slope
-            )
+        # if model_type == 'q-cap':
+        #     return encoder.CaptionEncoder(
+        #         ntoken=ntoken,
+        #         embed_dim=embed_dim,
+        #         hidden_dim=hidden_dim,
+        #         rnn_layer=rnn_layer,
+        #         v_dim=v_dim,
+        #         c_len=c_len,
+        #         device=device,
+        #         dropout=dropout,
+        #         rnn_type=rnn_type,
+        #         neg_slope=neg_slope
+        #     )
         return encoder.BaseEncoder(
             ntoken=ntoken,
             embed_dim=embed_dim,
@@ -129,6 +113,8 @@ def set_model(  model_type: str,
     def set_predictor():
         if model_type == 'cap': return None
         if model_type == 'q-cap': return predictor.PredictorwithCaption(
+            embed_dim=embed_dim,
+            c_len=c_len,
             v_dim=v_dim,
             hidden_dim=hidden_dim,
             ans_dim=ans_dim,

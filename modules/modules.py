@@ -359,6 +359,6 @@ class CaptionEmbedding(nn.Module):
             output[:batch_t, :, t] = h
             alphas[:batch_t, t, :] = att
         # Element-wise max pooling
-        output = self.maxpool(output).squeeze() # [batch, hidden_dim]
+        output = self.maxpool(output).squeeze(2) # [batch, hidden_dim]
 
         return output[restore_id,:], alphas[restore_id,:,:]

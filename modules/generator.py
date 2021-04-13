@@ -95,12 +95,11 @@ class BaseDecoder(DecoderModule):
         rnn_cls = nn.LSTMCell if rnn_type =='LSTM' else nn.GRUCell
         self.rnn = rnn_cls(input_size=embed_dim+v_dim, hidden_size=hidden_dim)
 
-        self.embedding = nn.Embedding(ntoken, embed_dim)
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, v, caption, cap_len):
+    def forward(self, v, caption, cap_len, target):
         # Flatten image features
         v_mean = v.mean(1).to(self.device) # [batch, v_dim]
         num_objs = v.size(1)
@@ -108,12 +107,9 @@ class BaseDecoder(DecoderModule):
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
-        sort_caption = caption[sort_id]
+        caption = caption[sort_id]
         v = v[sort_id]
         v_mean = v_mean[sort_id]
-
-        # Encode captions
-        caption = self.embedding(sort_caption) # [batch, max_len, embed_dim]
 
         # Initialize RNN states
         batch = caption.size(0)
@@ -156,11 +152,11 @@ class BaseDecoder(DecoderModule):
         output = self.softmax(output)
         
         # Since decode starting with <start>, the targets are all words after <start>
-        sort_caption = sort_caption[:,1:]
+        target = target[:,1:]
         
         return {
             'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
-            'target': pack_padded_sequence(sort_caption, decode_len, batch_first=True).data,
+            'target': pack_padded_sequence(target, decode_len, batch_first=True).data,
         }
 
 
@@ -208,13 +204,12 @@ class BUTDDecoder(DecoderModule):
         self.word_rnn = rnn_cls(input_size=hidden_dim + v_dim + embed_dim, hidden_size=hidden_dim)
         self.language_rnn = rnn_cls(input_size=v_dim + hidden_dim, hidden_size=hidden_dim)
 
-        self.embedding = nn.Embedding(ntoken, embed_dim)
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def decode(self, v, prev, h1, h2):
+    def decode(self, v, caption, h1, h2):
         """Decode process
         Input:
             v: visual features[batch, num_objs, v_dim]
@@ -227,9 +222,6 @@ class BUTDDecoder(DecoderModule):
         """
         # Flatten image features
         v_mean = v.mean(1).to(self.device) # [batch, v_dim]
-
-        # Encode captions
-        caption = self.embedding(prev) # [batch, embed_dim]
 
         # First RNN: Word RNN
         h = h2[0] if self.rnn_type == 'LSTM' else h2
@@ -279,9 +271,6 @@ class BUTDDecoder(DecoderModule):
         sort_caption = caption[sort_id]
         v = v[sort_id]
         v_mean = v_mean[sort_id]
-
-        # Encode captions
-        caption = self.embedding(sort_caption) # [batch, max_len, embed_dim]
 
         # Initialize RNN states
         batch = caption.size(0)
