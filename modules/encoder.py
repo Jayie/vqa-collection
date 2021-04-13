@@ -204,6 +204,7 @@ class CaptionEncoder(BaseEncoder):
                  device: str,
                  dropout: float = 0.5,
                  rnn_type: str = 'GRU',
+                 att_type: str = 'base',
                  neg_slope: float = 0.01,
     ):
         super().__init__(ntoken, embed_dim, hidden_dim, rnn_layer, v_dim, device, dropout, rnn_type, att_type)
