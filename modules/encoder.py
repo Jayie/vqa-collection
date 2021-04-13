@@ -224,7 +224,7 @@ class CaptionEncoder(BaseEncoder):
         )
 
         # Attention layer for image features based on caption embedding
-        self.caption_attention = ConcatAttention(v_dim=v_dim, q_dim=hidden_dim)
+        self.caption_attention = set_att('base')(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
 
     def forward(self, batch):
         """
