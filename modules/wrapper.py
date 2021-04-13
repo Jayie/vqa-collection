@@ -46,13 +46,17 @@ class Wrapper(nn.Module):
 
         # If VQA module exists: get prediction
         predict = self.predictor(v, w) if self.predictor!=None else None
+
+        c = None
+        if type(predict) != torch.Tensor:
+            w, c = w
         w.detach()
         del w
 
         # If Caption module exists: generate caption
         caption = None
         if self.generator:
-            c = batch['c'].to(self.device)
+            c = batch['c'].to(self.device) if not c else c
             cap_len = batch['cap_len'].to(self.device)
             caption = self.generator(v, c, cap_len)
 
