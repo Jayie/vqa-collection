@@ -123,6 +123,8 @@ def main():
                         att_type=args.att_type,
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
+                        decoder_device=args.decoder_device,
+                        vocab_path=args.vocab_path,
                     )
     print('model ready.')
 
