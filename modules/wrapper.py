@@ -55,6 +55,7 @@ def set_model(  encoder_type: str = 'base',
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
                 decoder_device: str = '',
+                vocab_path: str = ''
 ):
     if decoder_device == '':
         print('set same as device')
@@ -72,6 +73,7 @@ def set_model(  encoder_type: str = 'base',
                         att_type=att_type,
                         conv_type=conv_type,
                         conv_layer=conv_layer,
+                        vocab_path=vocab_path
                     ).to(device),
                     set_predictor(
                         predictor_type=predictor_type,

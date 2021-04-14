@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset import set_dataset
 from train import train, evaluate
 from sample import sample_vqa
-from modules.wrapper import set_model, use_pretrained_embedding
+from modules.wrapper import set_model
 from util.utils import *
 
 def parse_args():
@@ -124,8 +124,6 @@ def main():
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
                     )
-    if args.embed_path != '':
-        model = use_pretrained_embedding(model, args.embed_path, args.device)
     print('model ready.')
 
     if args.mode == 'train':
