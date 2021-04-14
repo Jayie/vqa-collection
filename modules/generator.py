@@ -42,7 +42,7 @@ class DecoderModule(nn.Module):
 
     def init_hidden(self, batch):
         """Initialize hidden states."""
-        init = torch.zeros((batch, self.hidden_dim)).to(self.device)
+        init = torch.zeros((batch, self.hidden_dim), device=self.device)
         if self.rnn_type == 'LSTM': return (init, init)
         else: return init
 
