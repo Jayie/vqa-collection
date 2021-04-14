@@ -9,17 +9,18 @@ from .modules import FCNet
 from .attention import set_att
 
 
-def set_decoder(  decoder_type: str,
-                    ntoken: int,
-                    embed_dim: int,
-                    hidden_dim: int,
-                    v_dim: int,
-                    max_len: int,
-                    device: str,
-                    dropout: float = 0.5,
-                    rnn_type: str = 'GRU',
-                    att_type: str = 'base',
+def set_decoder(decoder_type: str,
+                ntoken: int,
+                embed_dim: int,
+                hidden_dim: int,
+                v_dim: int,
+                max_len: int,
+                device: str,
+                dropout: float,
+                rnn_type: str,
+                att_type: str,
     ):
+    if decoder_type == 'none': return
     return {
         'base': BaseDecoder,
         'butd': BUTDDecoder

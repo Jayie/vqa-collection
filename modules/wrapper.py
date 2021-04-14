@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import modules.encoder as encoder
-import modules.predictor as predictor
+from modules.encoder import set_encoder
+from modules.predictor import set_predictor
 from modules.generator import set_decoder
 from modules.modules import PretrainedWordEmbedding
 
@@ -51,7 +51,9 @@ class Wrapper(nn.Module):
         
         return predict, caption, batch['v_att']
 
-def set_model(  model_type: str,
+def set_model(  encoder_type: str = 'base',
+                predictor_type: str = 'base',
+                decoder_type: str = 'base',
                 ntoken: int = 0,
                 v_dim: int = 0,
                 embed_dim: int = 0,
@@ -68,83 +70,44 @@ def set_model(  model_type: str,
                 att_type: str = 'base',
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
-                decoder_type: str = 'base'
 ):
-    def set_encoder():
-        if model_type == 'conv':
-            return encoder.RelationEncoder(
-                ntoken=ntoken,
-                embed_dim=embed_dim,
-                hidden_dim=hidden_dim,
-                v_dim=v_dim,
-                device=device,
-                dropout=dropout,
-                rnn_type=rnn_type,
-                rnn_layer=rnn_layer,
-                att_type=att_type,
-                conv_type=conv_type,
-                conv_layer=conv_layer
+    return Wrapper( device, 
+                    set_encoder(
+                        encoder_type=encoder_type,
+                        ntoken=ntoken,
+                        v_dim=v_dim,
+                        embed_dim=embed_dim,
+                        hidden_dim=hidden_dim,
+                        device=device,
+                        dropout=dropout,
+                        rnn_type=rnn_type,
+                        rnn_layer=rnn_layer,
+                        att_type=att_type,
+                        conv_type=conv_type,
+                        conv_layer=conv_layer,
+                    ),
+                    set_predictor(
+                        predictor_type=predictor_type,
+                        v_dim=v_dim,
+                        embed_dim=embed_dim,
+                        hidden_dim=hidden_dim,
+                        ans_dim=ans_dim,
+                        device=device,
+                        cls_layer=cls_layer,
+                        dropout=dropout,
+                        c_len=c_len,
+                        neg_slope=neg_slope
+                    ),
+                    set_decoder(
+                        decoder_type=decoder_type,
+                        ntoken=ntoken,
+                        embed_dim=embed_dim,
+                        hidden_dim=hidden_dim,
+                        v_dim=v_dim,
+                        max_len=c_len,
+                        device=device,
+                        dropout=dropout,
+                        rnn_type=rnn_type,
+                        att_type=att_type
+                    )
             )
-        # if model_type == 'q-cap':
-        #     return encoder.CaptionEncoder(
-        #         ntoken=ntoken,
-        #         embed_dim=embed_dim,
-        #         hidden_dim=hidden_dim,
-        #         rnn_layer=rnn_layer,
-        #         v_dim=v_dim,
-        #         c_len=c_len,
-        #         device=device,
-        #         dropout=dropout,
-        #         rnn_type=rnn_type,
-        #         neg_slope=neg_slope
-        #     )
-        return encoder.BaseEncoder(
-            ntoken=ntoken,
-            embed_dim=embed_dim,
-            hidden_dim=hidden_dim,
-            v_dim=v_dim,
-            device=device,
-            dropout=dropout,
-            rnn_type=rnn_type,
-            rnn_layer=rnn_layer,
-            att_type=att_type
-        )
-
-    def set_predictor():
-        if model_type == 'cap': return None
-        if model_type == 'q-cap': return predictor.PredictorwithCaption(
-            embed_dim=embed_dim,
-            c_len=c_len,
-            v_dim=v_dim,
-            hidden_dim=hidden_dim,
-            ans_dim=ans_dim,
-            device=device,
-            cls_layer=cls_layer,
-            dropout=dropout,
-            neg_slope=neg_slope
-        )
-        return predictor.BasePredictor(
-            v_dim=v_dim,
-            hidden_dim=hidden_dim,
-            ans_dim=ans_dim,
-            device=device,
-            cls_layer=cls_layer,
-            dropout=dropout
-        )
-
-    def set_generator():
-        if model_type in ['base', 'conv']: return None
-        return set_decoder(
-            decoder_type=decoder_type,
-            ntoken=ntoken,
-            embed_dim=embed_dim,
-            hidden_dim=decoder_hidden_dim,
-            v_dim=v_dim,
-            max_len=c_len,
-            device=device,
-            dropout=dropout,
-            rnn_type=rnn_type,
-            att_type=att_type
-        )
-
-    return Wrapper(device, set_encoder(), set_predictor(), set_generator())

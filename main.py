@@ -20,7 +20,12 @@ def parse_args():
     # set parameters
     parser = argparse.ArgumentParser()
 
-    # settings
+    # save settings
+    parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
+    parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
+    parser.add_argument('--seed', type=int, default=10, help='random seed')
+
+    # path settings
     parser.add_argument('--vocab_path', type=str, default='../data/vocab_list.txt', help='path for vocabulary list')
     parser.add_argument('--ans_path',type=str, default='../data/answer_candidate.txt', help='path for answer candidate list')
     parser.add_argument('--load_path', type=str, default='../annot', help='path for loading dataset')
@@ -28,17 +33,14 @@ def parse_args():
     parser.add_argument('--select_path', type=str, default='../annot/select_caption/most_relevant.pkl', help='path for caption selection strategy')
     parser.add_argument('--graph_path', type=str, default='../../COCO_graph_36', help='path for COCO spatial relation graphs')
     parser.add_argument('--index_path', type=str, default='../annot/index.pkl', help='path for index of different answer types')
-    parser.add_argument('--seed', type=int, default=10, help='random seed')
-    parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
-    parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
 
     # dataset and dataloader settings
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--shuffle', type=bool, default=True, help='shuffle dataloader or not')
     parser.add_argument('--c_len', type=int, default=20)
 
-    # model settings
-    parser.add_argument('--model', type=str, default='base', help='model type')
+    # encoder settings
+    parser.add_argument('--encoder_type', type=str, default='base', help='encoder type (base/relation, default = base)')
     parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU/LSTM, default = GRU)')
     parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
@@ -46,21 +48,27 @@ def parse_args():
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
+
+    # predictor settings
+    parser.add_argument('--predictor_type', type=str, default='base', help='predictor type (none/base/q-cap, default=base)')
     parser.add_argument('--cls_layer', type=int, default=2, help='the number of non-linear layers in the classifier')
+
+    # relation encoder settings
+    parser.add_argument('--conv_type', type=str, default='corr', help='GCN type (base/direct/corr, default = corr)')
+    parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
+
+    # use pre-trained word embedding
+    parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
+
+    # decoder settings
+    parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
+    parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
 
     # learning rate scheduler settings
     parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
-
-    # relation encoder settings
-    parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
-    parser.add_argument('--conv_type', type=str, default='corr', help='GCN type (base/direct/corr, default = corr)')
-
-    # decoder settings
-    parser.add_argument('--decoder_type', type=str, default='simple', help='decoder type (base/butd, default = base)')
-    parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
 
     # training/validating process settings
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
@@ -69,8 +77,7 @@ def parse_args():
     parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
 
-    # use pre-trained word embedding
-    parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
+    
 
     args = parser.parse_args()
     return args
@@ -99,7 +106,9 @@ def main():
             f.write(f'{key}: {value}\n')
 
     # setup model
-    model = set_model(  model_type=args.model,
+    model = set_model(  encoder_type=args.encoder_type,
+                        predictor_type=args.predictor_type,
+                        decoder_type=args.decoder_type,
                         ntoken=len(vocab_list),
                         v_dim=args.v_dim,
                         embed_dim=args.embed_dim,
@@ -115,8 +124,7 @@ def main():
                         att_type=args.att_type,
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
-                        decoder_type=args.decoder_type
-                )
+                    )
     if args.embed_path != '':
         model = use_pretrained_embedding(model, args.embed_path, args.device)
     print('model ready.')

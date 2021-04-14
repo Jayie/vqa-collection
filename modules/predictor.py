@@ -6,6 +6,38 @@ import torch.nn as nn
 from .modules import FCNet, CaptionEmbedding, LReLUNet
 from .attention import ConcatAttention
 
+def set_predictor(predictor_type: str,
+                  v_dim: int,
+                  embed_dim: int,
+                  hidden_dim: int,
+                  ans_dim: int,
+                  device: str,
+                  cls_layer: int,
+                  dropout: float,
+                  c_len: int,
+                  neg_slope: float,
+    ):
+    if predictor_type == 'base':
+        return BasePredictor(
+            v_dim=v_dim,
+            hidden_dim=hidden_dim,
+            ans_dim=ans_dim,
+            device=device,
+            cls_layer=cls_layer,
+            dropout=dropout
+        )
+    if predictor_type == 'q-cap':
+        return PredictorwithCaption(
+            embed_dim=embed_dim,
+            c_len=c_len,
+            v_dim=v_dim,
+            hidden_dim=hidden_dim,
+            ans_dim=ans_dim,
+            device=device,
+            cls_layer=cls_layer,
+            dropout=dropout,
+            neg_slope=neg_slope
+        )
 
 class BasePredictor(nn.Module):
     """

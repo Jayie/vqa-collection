@@ -7,14 +7,51 @@ from .gcn import GCN
 from .modules import FCNet, SentenceEmbedding, PretrainedWordEmbedding, CaptionEmbedding, LReLUNet
 from .attention import set_att
 
+def set_encoder(encoder_type: str,
+                ntoken: int,
+                v_dim: int,
+                embed_dim: int,
+                hidden_dim: int,
+                device: str,
+                dropout: float,
+                rnn_type: str,
+                rnn_layer: int,
+                att_type: str,
+                conv_type: str,
+                conv_layer: int,
+    ):
+    if encoder_type == 'base':
+        return BaseEncoder(
+            ntoken=ntoken,
+            v_dim=v_dim,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            device=device,
+            dropout=dropout,
+            rnn_type=rnn_type,
+            rnn_layer=rnn_layer,
+            att_type=att_type
+        )
+    if encoder_type == 'relation':
+        return RelationEncoder(
+            ntoken=ntoken,
+            v_dim=v_dim,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            device=device,
+            dropout=dropout,
+            rnn_type=rnn_type,
+            rnn_layer=rnn_layer,
+            att_type=att_type,
+            conv_type=conv_type,
+            conv_layer=conv_layer
+        )
 
 # This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
 # 'Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering' (https://arxiv.org/abs/1707.07998) and 
 # 'Tips and Tricks for Visual Question Answering: Learning from teh 2017 Challenge' (https://arxiv.org/abs/1708.02711)
 #
 # Code reference: https://github.com/hengyuan-hu/bottom-up-attention-vqa
-
-
 
 class BaseEncoder(nn.Module):
     """
