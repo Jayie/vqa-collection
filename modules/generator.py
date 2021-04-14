@@ -122,8 +122,8 @@ class BaseDecoder(DecoderModule):
         h = self.init_hidden(batch)
 
         # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.max_len, self.ntoken).to(self.device)
-        alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
+        output = torch.zeros(batch, self.max_len, self.ntoken, device=self.device)
+        # alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
 
         # We don't decode at the <end> position
         decode_len = (cap_len - 1).tolist()
@@ -141,7 +141,7 @@ class BaseDecoder(DecoderModule):
             h0 = h[0] if self.rnn_type == 'LSTM' else h
             att = self.attention(v[:batch_t], h0) # [batch, num_objs, 1]
             att_v = (att * v[:batch_t]).sum(1) # [batch, v_dim]
-            att = att.squeeze()
+            # att = att.squeeze()
 
             # Decode
             h = self.rnn(torch.cat([caption[:batch_t,t,:], att_v], dim=1), h)
@@ -152,7 +152,7 @@ class BaseDecoder(DecoderModule):
             
             # Save the results
             output[:batch_t, t, :] = h0
-            alphas[:batch_t, t, :] = att
+            # alphas[:batch_t, t, :] = att
         
         # Softmax
         output = self.softmax(output)
