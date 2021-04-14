@@ -10,6 +10,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 def compute_score(predict, target, device, get_label=False):
     """Compute score (according to the VQA evaluation metric)"""
+    predict = predict.to(device)
+    target = target.to(device)
+
     # get the most possible predicted results for each question
     logits = torch.max(predict, 1)[1].data
 
@@ -119,7 +122,7 @@ def train(  model, lr,
             # For captioning
             if caption != None:
                 loss_cap = ce_for_language_model(caption['predict'], caption['target'])
-                loss += loss_cap
+                loss += loss_cap.to(device)
 
                 # Write to Tensorboard
                 writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
