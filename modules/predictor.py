@@ -52,6 +52,7 @@ class BasePredictor(nn.Module):
                  dropout: float = 0.5,
     ):
         super().__init__()
+        self.device = device
 
         # Non-linear layers for question
         self.v_net = FCNet(v_dim, hidden_dim)
@@ -65,6 +66,7 @@ class BasePredictor(nn.Module):
         )
 
     def forward(self, batch):
+        for i in batch: batch[i] = batch[i].to(self.device)
         v = batch['v'].sum(1) # [batch, v_dim]
 
         # FC layers
@@ -118,6 +120,7 @@ class PredictorwithCaption(nn.Module):
         )
 
     def forward(self, batch):
+        for i in batch: batch[i] = batch[i].to(self.device)
         batch['v'] = self.v_net(batch['v'])
 
         # Caption embedding

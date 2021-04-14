@@ -81,12 +81,11 @@ def train(  model, lr,
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
 
-    # Parallelism
-    if torch.cuda.device_count() > 1:
-        print('Use', torch.cuda.device_count(), 'GPUs.')
-        model = nn.DataParallel(model)
+    # # Data parallelism
+    # if torch.cuda.device_count() > 1:
+    #     print('Use', torch.cuda.device_count(), 'GPUs.')
+    #     model = nn.DataParallel(model)
 
-    model.to(device)
     for epoch in range(start_epoch, num_epoches):
         start = time.time()
         avg_loss = 0
@@ -204,7 +203,6 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     all_label = torch.zeros_like(all_score)
     l = len(dataloader.dataset)
 
-    model = model.to(device)
     model.eval()
     start = time.time()
     with torch.no_grad():

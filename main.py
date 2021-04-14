@@ -63,6 +63,7 @@ def parse_args():
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
     parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
+    parser.add_argument('--decoder_device', type=str, default='', help='device for decoder (model parallel)')
 
     # learning rate scheduler settings
     parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
@@ -76,8 +77,6 @@ def parse_args():
     parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
     parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
-
-    
 
     args = parser.parse_args()
     return args

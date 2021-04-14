@@ -100,7 +100,12 @@ class BaseDecoder(DecoderModule):
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, v, caption, cap_len, target):
+    def forward(self, batch):
+        v = batch['v'].to(self.device)
+        caption = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        target = batch['c_target'].to(self.device)
+
         # Flatten image features
         v_mean = v.mean(1).to(self.device) # [batch, v_dim]
         num_objs = v.size(1)

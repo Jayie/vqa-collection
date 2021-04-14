@@ -19,9 +19,10 @@ def set_encoder(encoder_type: str,
                 att_type: str,
                 conv_type: str,
                 conv_layer: int,
+                vocab_path: str = ''
     ):
     if encoder_type == 'base':
-        return BaseEncoder(
+        model = BaseEncoder(
             ntoken=ntoken,
             v_dim=v_dim,
             embed_dim=embed_dim,
@@ -33,7 +34,7 @@ def set_encoder(encoder_type: str,
             att_type=att_type
         )
     if encoder_type == 'relation':
-        return RelationEncoder(
+        model = RelationEncoder(
             ntoken=ntoken,
             v_dim=v_dim,
             embed_dim=embed_dim,
@@ -46,6 +47,9 @@ def set_encoder(encoder_type: str,
             conv_type=conv_type,
             conv_layer=conv_layer
         )
+    if vocab_path != '':
+        model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
+    return model
 
 # This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
 # 'Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering' (https://arxiv.org/abs/1707.07998) and 
