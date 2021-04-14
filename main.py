@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
 
     # use pre-trained word embedding
-    parser.add_argument('--embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
+    parser.add_argument('--pretrained_embed_path', type=str, default='', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
 
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
@@ -124,7 +124,7 @@ def main():
                         conv_layer=args.conv_layer,
                         conv_type=args.conv_type,
                         decoder_device=args.decoder_device,
-                        vocab_path=args.vocab_path,
+                        pretrained_embed_path=args.pretrained_embed_path,
                     )
     print('model ready.')
 
