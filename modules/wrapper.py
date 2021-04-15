@@ -35,6 +35,17 @@ class Wrapper(nn.Module):
         
         return predict, caption, batch['v_att']
 
+    def forward_vqa(self, batch):
+        self.gradients = []
+        batch = self.encoder(batch)
+        predict = self.predictor(batch) if self.predictor else None
+        return predict
+
+    def forward_cap(self, batch):
+        batch = self.encoder(batch)
+        caption = self.generator(batch) if self.generator else None
+        return caption
+
 def set_model(  encoder_type: str = 'base',
                 predictor_type: str = 'base',
                 decoder_type: str = 'base',

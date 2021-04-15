@@ -212,7 +212,7 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
             target = batch['a'].float().to(device)
             batch_size = target.size(0)
-            predict, _, _ = model(batch) # predict = [batch_size, ans_dim]
+            predict = model.forward_vqa(batch) # predict = [batch_size, ans_dim]
             batch_score, label = compute_score(predict, target, device, True)
 
             score += batch_score.sum().item()
