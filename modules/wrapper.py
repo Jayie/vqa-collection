@@ -42,6 +42,7 @@ class Wrapper(nn.Module):
         return predict
 
     def forward_cap(self, batch):
+        self.gradients = []
         batch = self.encoder(batch)
         caption = self.generator(batch) if self.generator else None
         return caption

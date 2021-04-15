@@ -140,7 +140,12 @@ def main():
             is_train=True,
             dataset_type='select' if args.select_path != 0 else 'all'
         )
-        train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.shuffle)
+        train_loader = DataLoader(train_data,
+            batch_size=args.batch_size,
+            shuffle=args.shuffle,
+            num_workers=4*torch.cuda.device_count(),
+            pin_memory=True,
+        )
         val_data = set_dataset(
             load_path=args.load_path,
             feature_path=args.feature_path,
@@ -151,7 +156,12 @@ def main():
             is_val=True,
             dataset_type='select' if args.select_path != 0 else 'all'
         )
-        val_loader = DataLoader(val_data, batch_size=args.batch_size, shuffle=False)
+        val_loader = DataLoader(val_data,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=4*torch.cuda.device_count(),
+            pin_memory=True,
+        )
 
         # if need to train continously, load the previous status of model
         score = 0.0
