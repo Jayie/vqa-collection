@@ -50,6 +50,8 @@ class DecoderModule(nn.Module):
         if self.rnn_type == 'LSTM': return (h[0][:batch], h[1][:batch])
         else: return h[:batch]
 
+    def decode(self, batch): return
+
     def forward(self, v, caption, cap_len): return
 
 
@@ -100,7 +102,14 @@ class BaseDecoder(DecoderModule):
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
+    def decode(self, batch):
+        """Decode process
+        """
+        # TODO
+
     def forward(self, batch):
+        """Training process
+        """
         v = batch['v'].to(self.device)
         caption = batch['c'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
