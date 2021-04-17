@@ -5,6 +5,7 @@ from tqdm import tqdm
 import torch
 import torch.optim
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from torch.nn.utils.weight_norm import weight_norm
@@ -287,21 +288,16 @@ class CaptionEmbedding(nn.Module):
         self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=c_dim, dropout=dropout)
         # fully-connected layer
         self.fcnet = LReLUNet(hidden_dim, hidden_dim, neg_slope)
-        # max-pooling layer
-        self.maxpool = nn.MaxPool1d(max_len)
 
     def init_hidden(self, shape):
         """Initialize hidden states."""
-        if self.rnn_type == 'LSTM':
-            return (torch.zeros(shape).to(self.device), torch.zeros(shape).to(self.device))
-        else:
-            return torch.zeros(shape).to(self.device)
+        init = torch.zeros(shape, device=self.device)
+        if self.rnn_type == 'LSTM': return (init, init)
+        else: return init
 
     def select_hidden(self, h, batch):
-        if self.rnn_type == 'LSTM':
-            return (h[0][:batch], h[1][:batch])
-        else:
-            return h[:batch]
+        if self.rnn_type == 'LSTM': return (h[0][:batch], h[1][:batch])
+        else: return h[:batch]
 
     def forward(self, v, q, caption, cap_len):
         """Input:
@@ -315,7 +311,6 @@ class CaptionEmbedding(nn.Module):
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         caption = caption[sort_id]
         v = v[sort_id]
-        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
 
         # Initialize RNN states
         batch = caption.size(0)
@@ -323,8 +318,8 @@ class CaptionEmbedding(nn.Module):
         h2 = self.init_hidden((batch, self.hidden_dim)) # [batch, hidden_dim]
 
         # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.hidden_dim, self.max_len).to(self.device)
-        alphas = torch.zeros(batch, self.max_len, self.c_dim).to(self.device)
+        output = torch.zeros(batch, self.max_len, self.hidden_dim, device=self.device)
+        # alphas = torch.zeros(batch, self.max_len, self.c_dim, device=self.device)
 
         # This list is for saving the batch size for each time step
         batches = []
@@ -356,9 +351,9 @@ class CaptionEmbedding(nn.Module):
             h = self.fcnet(h)
 
             # Save the results
-            output[:batch_t, :, t] = h
-            alphas[:batch_t, t, :] = att
+            output[:batch_t, t, :] = h
+            # alphas[:batch_t, t, :] = att
         # Element-wise max pooling
-        output = self.maxpool(output).squeeze(2) # [batch, hidden_dim]
+        output = output.max(dim=1).values # [batch, hidden_dim]
 
-        return output[restore_id,:], alphas[restore_id,:,:]
+        return output[sort_id.argsort()]

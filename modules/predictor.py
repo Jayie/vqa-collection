@@ -66,7 +66,9 @@ class BasePredictor(nn.Module):
         )
 
     def forward(self, batch):
-        for i in batch: batch[i] = batch[i].to(self.device)
+        batch['v'] = batch['v'].to(self.device)
+        batch['q'] = batch['q'].to(self.device)
+
         v = batch['v'].sum(1) # [batch, v_dim]
 
         # FC layers
@@ -94,19 +96,20 @@ class PredictorwithCaption(nn.Module):
                     neg_slope: float = 0.01,
     ):
         super().__init__()
+        self.device = device
         
         # Caption embedding module
         self.v_net = LReLUNet(v_dim, hidden_dim, neg_slope)
         self.caption_embedding = CaptionEmbedding(
             v_dim=hidden_dim,
             q_dim=hidden_dim,
-            c_dim=embed_dim,
+            c_dim=embed_dim, 
             hidden_dim=hidden_dim,
             max_len=c_len,
             device=device,
             dropout=dropout
         )
-        self.c_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
+        self.c_net = LReLUNet(embed_dim, hidden_dim, neg_slope)
         
         # For caption-attended visual features
         self.vq_net = LReLUNet(hidden_dim, hidden_dim, neg_slope)
@@ -125,7 +128,8 @@ class PredictorwithCaption(nn.Module):
 
         # Caption embedding
         v = batch['v'].sum(1) # [batch, v_dim]
-        c, _ = self.caption_embedding(v, batch['q'], batch['c'], batch['cap_len']) # [batch, hidden_dim]
+        c = self.caption_embedding(v, batch['q'], batch['c'], batch['cap_len']) # [batch, hidden_dim]
+        # c = batch['c'].to(self.device).sum(1) # [batch, hidden_dim]
 
         # Produce caption-attended visual features
         v = self.vq_net(v) # [batch, hidden_dim]
