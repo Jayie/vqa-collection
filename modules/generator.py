@@ -52,7 +52,7 @@ class DecoderModule(nn.Module):
 
     def decode(self, batch): return
 
-    def forward(self, v, caption, cap_len): return
+    def forward(self, batch): return
 
 
 class BaseDecoder(DecoderModule):
@@ -102,10 +102,25 @@ class BaseDecoder(DecoderModule):
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def decode(self, batch):
-        """Decode process
+    def decode(self, v, prev, h):
+        """Decode process: Given image features and previous word, return the distribution of next word
+            v: image features, [batch, num_objs, v_dim]
+            prev: previous word, [batch, embed_dim]
+            h: hidden_state, [batch, hidden_dim]
         """
-        # TODO
+        # Attention of image considering hidden state
+        h0 = h[0] if self.rnn_type == 'LSTM' else h
+        att = self.attention(v, h0) # [batch, num_objs, 1]
+        att_v = (att * v).sum(1) # [batch, v_dim]
+        # att = att.squeeze()
+
+        # Decode
+        h = self.rnn(torch.cat([prev, att_v], dim=1), h)
+        h0 = h[0] if self.rnn_type == 'LSTM' else h
+
+        # Predict the possible output word
+        return self.fcnet(h0) # [batch_t, ntoken]
+        
 
     def forward(self, batch):
         """Training process
@@ -114,9 +129,6 @@ class BaseDecoder(DecoderModule):
         caption = batch['c'].to(self.device)
         cap_len = batch['cap_len'].to(self.device)
         target = batch['c_target'].to(self.device)
-
-        # Flatten image features
-        v_mean = v.mean(1).to(self.device) # [batch, v_dim]
         num_objs = v.size(1)
 
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
@@ -124,7 +136,6 @@ class BaseDecoder(DecoderModule):
         restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
         caption = caption[sort_id]
         v = v[sort_id]
-        v_mean = v_mean[sort_id]
 
         # Initialize RNN states
         batch = caption.size(0)
@@ -146,22 +157,8 @@ class BaseDecoder(DecoderModule):
             batches.append(batch_t)
             h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
             
-            # Attention of image considering hidden state
-            h0 = h[0] if self.rnn_type == 'LSTM' else h
-            att = self.attention(v[:batch_t], h0) # [batch, num_objs, 1]
-            att_v = (att * v[:batch_t]).sum(1) # [batch, v_dim]
-            # att = att.squeeze()
-
-            # Decode
-            h = self.rnn(torch.cat([caption[:batch_t,t,:], att_v], dim=1), h)
-            h0 = h[0] if self.rnn_type == 'LSTM' else h
-
-            # Predict the possible output word
-            h0 = self.fcnet(h0) # [batch_t, ntoken]
-            
             # Save the results
-            output[:batch_t, t, :] = h0
-            # alphas[:batch_t, t, :] = att
+            output[:batch_t, t, :] = self.decode(v=v[:batch_t], prev=caption[:batch_t, t, :], h=h)
         
         # Softmax
         output = self.softmax(output)
@@ -224,73 +221,48 @@ class BUTDDecoder(DecoderModule):
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def decode(self, v, caption, h1, h2):
-        """Decode process
-        Input:
-            v: visual features[batch, num_objs, v_dim]
-            prev: previous decoded results (initial: <start>)
-            h1, h2: hidden states [batch, hidden_dim]
-        Output:
-            h: next word [batch, ntoken]
-            h1, h2: hidden states [batch, hidden_dim]
-            att: [batch, num_objs]
-        """
-        # Flatten image features
-        v_mean = v.mean(1).to(self.device) # [batch, v_dim]
-
+    def decode(self, v, v_mean, prev, h1, h2):
         # First RNN: Word RNN
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-        h1 = self.word_rnn(
-            torch.cat([h, v_mean, caption ], dim=1) # x1: [batch, hidden_dim + v_dim + embed_dim]
-            , h1                                    # h1: [batch, hidden_dim]
-        )                                           # output: [batch, hidden_dim]
+        h1 = self.word_rnn(torch.cat([h, v_mean, prev], dim=1), h1) # output: [batch_t, hidden_dim]
         h = h1[0] if self.rnn_type == 'LSTM' else h1
         h = self.h1_fcnet(h)
 
         # Attention
-        att = self.attention(v, h) # [batch, num_objs, 1]
-        att_v = (att * v).sum(1) # [batch, v_dim]
+        att = self.attention(v, h) # [batch_t, num_objs, 1]
+        att_v = (att * v).sum(1) # [batch_t, v_dim]
 
         # Second RNN: Language RNN
-        h2 = self.language_rnn(
-            torch.cat([att_v, h], dim=1)    # x2: [batch, v_dim + hidden_dim]
-            , h2                            # h2: [batch, hidden_dim]
-        )                                   # output: [batch, hidden_dim]
+        h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
 
         # Predict the possible output word
-        h = self.softmax(self.h2_fcnet(h)) # [batch_t, ntoken]
-        return h, h1, h2, att.squeeze()
+        h = self.h2_fcnet(h) # [batch_t, ntoken]
+        return h
 
-    def forward(self, v, caption, cap_len):
+    def forward(self, batch):
         """Training process
-        Input:
-            v: visual features [batch, num_objs, v_dim]
-            caption: ground truth captions [batch, max_len]
-            cap_len: caption lengths for each batch [batch, 1]
-        Output:
-            predict (Tensor): the decoded captions [batch, max_len, vocab_dim]
-            target (Tensor): the sorted ground truth caption tokens [batch, max_len, 1]
-            batches (list): the lenght of each batch [batch]
-            restore_id (list): the batch IDs to restore the order [batch]
-            decode_len (list): the lengths of decoded captions [batch]
-            alphas (Tensor): the attention map [batch, num_objs]
         """
+        v = batch['v'].to(self.device)
+        caption = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        target = batch['c_target'].to(self.device)
+        num_objs = v.size(1)
+
         # Flatten image features
         v_mean = v.mean(1).to(self.device) # [batch, v_dim]
-        num_objs = v.size(1)
 
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
         restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
-        sort_caption = caption[sort_id]
+        caption = caption[sort_id]
         v = v[sort_id]
         v_mean = v_mean[sort_id]
 
         # Initialize RNN states
         batch = caption.size(0)
-        total_h1 = self.init_hidden(batch)
-        total_h2 = self.init_hidden(batch)
+        h1 = self.init_hidden(batch)
+        h2 = self.init_hidden(batch)
 
         # Create tensor to hold the caption embedding after all time steps
         output = torch.zeros(batch, self.max_len, self.ntoken).to(self.device)
@@ -306,46 +278,24 @@ class BUTDDecoder(DecoderModule):
             # Only generate captions which is longer than t (ignore <pad>)
             batch_t = sum([l > t for l in decode_len])
             batches.append(batch_t)
-            h1 = self.select_hidden(total_h1, batch_t) # h1: [batch_t, hidden_dim]
-            h2 = self.select_hidden(total_h2, batch_t) # h2: [batch_t, hidden_dim]
-
-            # First RNN: Word RNN
-            h = h2[0] if self.rnn_type == 'LSTM' else h2
-            h1 = self.word_rnn(
-                torch.cat([
-                    h,                      # h2: [batch_t, hidden_dim]
-                    v_mean[:batch_t],       # v_mean: [batch_t, v_dim]
-                    caption[:batch_t, t, :] # caption: [batch_t, embed_dim]
-                ], dim=1)                   # x1: [batch_t, hidden_dim + v_dim + embed_dim]
-                , h1                        # h1: [batch_t, hidden_dim]
-            )                               # output: [batch_t, hidden_dim]
-            h = h1[0] if self.rnn_type == 'LSTM' else h1
-            h = self.h1_fcnet(h)
-
-            # Attention
-            att = self.attention(v[:batch_t], h) # [batch_t, num_objs, 1]
-            att_v = (att * v[:batch_t]).sum(1) # [batch_t, v_dim]
-
-            # Second RNN: Language RNN
-            h2 = self.language_rnn(
-                torch.cat([att_v, h], dim=1)    # x2: [batch_t, v_dim + hidden_dim]
-                , h2                            # h2: [batch_t, hidden_dim]
-            )                                   # output: [batch_t, hidden_dim]
-            h = h2[0] if self.rnn_type == 'LSTM' else h2
-
-            # Predict the possible output word
-            h = self.h2_fcnet(h) # [batch_t, ntoken]
+            h1 = self.select_hidden(h1, batch_t) # h1: [batch_t, hidden_dim]
+            h2 = self.select_hidden(h2, batch_t) # h2: [batch_t, hidden_dim]
             
             # Save the results
-            output[:batch_t, t, :] = h
-            alphas[:batch_t, t, :] = att.squeeze()
+            output[:batch_t, t, :] = self.decode(
+                v=v[:batch_t], v_mean=v_mean[:batch_t],
+                prev=caption[:batch_t, t, :],
+                h1=h1, h2=h2
+            )
+            # alphas[:batch_t, t, :] = att.squeeze()
         
         # Softmax
         output = self.softmax(output)
+
+        # Since decode starting with <start>, the targets are all words after <start>
+        target = target[:,1:]
+        
         return {
-            'predict': output[restore_id,:,:],
-            'target': sort_caption[:, 1:], # Since decode starting with <start>, the targets are all words after <start>
-            'decode_len': decode_len,
-            'batches': batches,
-            'alpha': alphas[restore_id,:,:],
+            'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
+            'target': pack_padded_sequence(target, decode_len, batch_first=True).data,
         }
