@@ -112,10 +112,6 @@ class BaseEncoder(nn.Module):
         Input:
             v: [batch, num_objs, v_dim]
             q: [batch, q_len]
-        Output:
-            v: [batch, num_objs, v_dim]
-            q: [batch, hidden_dim]
-            att: [batch, num_objs, 1]
         """
         # Setup inputs
         v = batch['img'].to(self.device)
@@ -140,12 +136,12 @@ class BaseEncoder(nn.Module):
         c = self.embedding(c_target) # [batch, c_len, embed_dim]
 
         return {
-            'v': v,
-            'q': q,
-            'c': c,
-            'c_target': c_target,
-            'cap_len': cap_len,
-            'v_att': v_att
+            'v': v,                 # [batch, num_objs, v_dim]
+            'q': q,                 # [batch, hidden_dim]
+            'c': c,                 # [batch, c_len, embed_dim]
+            'c_target': c_target,   # [batch, c_len]
+            'cap_len': cap_len,     # [batch]
+            'v_att': v_att          # [batch, num_objs, 1]
         }
 
     def forward(self, batch): return self.base_forward(batch)
