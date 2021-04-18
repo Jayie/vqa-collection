@@ -38,21 +38,85 @@ def set_decoder(decoder_type: str,
 
 
 class DecoderModule(nn.Module):
-    def __init__(self): super().__init__()
-
-    def init_hidden(self, batch):
+    def init(self): super().__init__()
+    
+    def init_hidden(self, batch_size):
         """Initialize hidden states."""
-        init = torch.zeros((batch, self.hidden_dim), device=self.device)
+        init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
         if self.rnn_type == 'LSTM': return (init, init)
         else: return init
 
-    def select_hidden(self, h, batch):
-        if self.rnn_type == 'LSTM': return (h[0][:batch], h[1][:batch])
-        else: return h[:batch]
+    def select_hidden(self, h, batch_size):
+        if self.rnn_type == 'LSTM': return (h[0][:batch_size], h[1][:batch_size])
+        else: return h[:batch_size]
 
-    def decode(self, batch): return
+    def decode(self, v, v_mean, prev, h):
+        """Decode process
+        Given image features and previous word, return the distribution of next word.
+        v: [batch, num_objs, v_dim]
+        v_mean: [batch, v_dim]
+        prev: [batch, embed_dim]
+        h: [batch, hidden_dim]
+        """
+        return h
 
-    def forward(self, batch): return
+    def forward(self, batch):
+        """Training process
+        """
+        v = batch['v'].to(self.device)
+        caption = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+        target = batch['c_target'].to(self.device)
+        num_objs = v.size(1)
+        
+        # Flatten image features
+        v_mean = v.mean(1) # [batch, v_dim]
+
+        # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
+        cap_len, sort_id = cap_len.sort(dim=0, descending=True)
+        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
+        caption = caption[sort_id]
+        v = v[sort_id]
+        v_mean = v_mean[sort_id]
+
+        # Initialize RNN states
+        batch_size = caption.size(0)
+        h = self.init_hidden(batch_size)
+
+        # Create tensor to hold the caption embedding after all time steps
+        output = torch.zeros(batch_size, self.max_len, self.ntoken, device=self.device)
+        # alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
+
+        # We don't decode at the <end> position
+        decode_len = (cap_len - 1).tolist()
+
+        # This list if for saving the batch size for each time step
+        batches = []
+        # For each time step:
+        for t in range(max(decode_len)):
+            # Only generate captions which is longer than t (ignore <pad>)
+            batch_t = sum([l > t for l in decode_len])
+            batches.append(batch_t)
+            h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
+            
+            # Save the results
+            output[:batch_t, t, :] = self.decode(
+                v=v[:batch_t],
+                v_mean=v_mean[:batch_t],
+                prev=caption[:batch_t, t, :],
+                h=h
+            )
+        
+        # Softmax
+        output = self.softmax(output)
+        
+        # Since decode starting with <start>, the targets are all words after <start>
+        target = target[:,1:]
+        
+        return {
+            'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
+            'target': pack_padded_sequence(target, decode_len, batch_first=True).data,
+        }
 
 
 class BaseDecoder(DecoderModule):
@@ -102,17 +166,13 @@ class BaseDecoder(DecoderModule):
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def decode(self, v, prev, h):
+    def decode(self, v, v_mean, prev, h):
         """Decode process: Given image features and previous word, return the distribution of next word
-            v: image features, [batch, num_objs, v_dim]
-            prev: previous word, [batch, embed_dim]
-            h: hidden_state, [batch, hidden_dim]
         """
         # Attention of image considering hidden state
         h0 = h[0] if self.rnn_type == 'LSTM' else h
         att = self.attention(v, h0) # [batch, num_objs, 1]
         att_v = (att * v).sum(1) # [batch, v_dim]
-        # att = att.squeeze()
 
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
@@ -120,56 +180,6 @@ class BaseDecoder(DecoderModule):
 
         # Predict the possible output word
         return self.fcnet(h0) # [batch_t, ntoken]
-        
-
-    def forward(self, batch):
-        """Training process
-        """
-        v = batch['v'].to(self.device)
-        caption = batch['c'].to(self.device)
-        cap_len = batch['cap_len'].to(self.device)
-        target = batch['c_target'].to(self.device)
-        num_objs = v.size(1)
-
-        # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
-        cap_len, sort_id = cap_len.sort(dim=0, descending=True)
-        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
-        caption = caption[sort_id]
-        v = v[sort_id]
-
-        # Initialize RNN states
-        batch = caption.size(0)
-        h = self.init_hidden(batch)
-
-        # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.max_len, self.ntoken, device=self.device)
-        # alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
-
-        # We don't decode at the <end> position
-        decode_len = (cap_len - 1).tolist()
-
-        # This list if for saving the batch size for each time step
-        batches = []
-        # For each time step:
-        for t in range(max(decode_len)):
-            # Only generate captions which is longer than t (ignore <pad>)
-            batch_t = sum([l > t for l in decode_len])
-            batches.append(batch_t)
-            h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
-            
-            # Save the results
-            output[:batch_t, t, :] = self.decode(v=v[:batch_t], prev=caption[:batch_t, t, :], h=h)
-        
-        # Softmax
-        output = self.softmax(output)
-        
-        # Since decode starting with <start>, the targets are all words after <start>
-        target = target[:,1:]
-        
-        return {
-            'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
-            'target': pack_padded_sequence(target, decode_len, batch_first=True).data,
-        }
 
 
 class BUTDDecoder(DecoderModule):
@@ -221,7 +231,20 @@ class BUTDDecoder(DecoderModule):
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def decode(self, v, v_mean, prev, h1, h2):
+    def init_hidden(self, batch_size):
+        """Initialize hidden states."""
+        init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
+        if self.rnn_type == 'LSTM': return (init, init), (init, init)
+        else: return init, init
+
+    def select_hidden(self, h, batch_size):
+        h1, h2 = h
+        if self.rnn_type == 'LSTM': return (h1[0][:batch_size], h1[1][:batch_size]), (h2[0][:batch_size], h2[1][:batch_size])
+        else: return h1[:batch_size], h2[:batch_size]
+
+    def decode(self, v, v_mean, prev, h):
+        h1, h2 = h
+
         # First RNN: Word RNN
         h = h2[0] if self.rnn_type == 'LSTM' else h2
         h1 = self.word_rnn(torch.cat([h, v_mean, prev], dim=1), h1) # output: [batch_t, hidden_dim]
@@ -239,63 +262,3 @@ class BUTDDecoder(DecoderModule):
         # Predict the possible output word
         h = self.h2_fcnet(h) # [batch_t, ntoken]
         return h
-
-    def forward(self, batch):
-        """Training process
-        """
-        v = batch['v'].to(self.device)
-        caption = batch['c'].to(self.device)
-        cap_len = batch['cap_len'].to(self.device)
-        target = batch['c_target'].to(self.device)
-        num_objs = v.size(1)
-
-        # Flatten image features
-        v_mean = v.mean(1).to(self.device) # [batch, v_dim]
-
-        # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
-        cap_len, sort_id = cap_len.sort(dim=0, descending=True)
-        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
-        caption = caption[sort_id]
-        v = v[sort_id]
-        v_mean = v_mean[sort_id]
-
-        # Initialize RNN states
-        batch = caption.size(0)
-        h1 = self.init_hidden(batch)
-        h2 = self.init_hidden(batch)
-
-        # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.max_len, self.ntoken).to(self.device)
-        alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
-
-        # We don't decode at the <end> position
-        decode_len = (cap_len - 1).tolist()
-
-        # This list if for saving the batch size for each time step
-        batches = []
-        # For each time step:
-        for t in range(max(decode_len)):
-            # Only generate captions which is longer than t (ignore <pad>)
-            batch_t = sum([l > t for l in decode_len])
-            batches.append(batch_t)
-            h1 = self.select_hidden(h1, batch_t) # h1: [batch_t, hidden_dim]
-            h2 = self.select_hidden(h2, batch_t) # h2: [batch_t, hidden_dim]
-            
-            # Save the results
-            output[:batch_t, t, :] = self.decode(
-                v=v[:batch_t], v_mean=v_mean[:batch_t],
-                prev=caption[:batch_t, t, :],
-                h1=h1, h2=h2
-            )
-            # alphas[:batch_t, t, :] = att.squeeze()
-        
-        # Softmax
-        output = self.softmax(output)
-
-        # Since decode starting with <start>, the targets are all words after <start>
-        target = target[:,1:]
-        
-        return {
-            'predict': pack_padded_sequence(output, decode_len, batch_first=True).data,
-            'target': pack_padded_sequence(target, decode_len, batch_first=True).data,
-        }
