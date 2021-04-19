@@ -38,7 +38,8 @@ def set_decoder(decoder_type: str,
 
 
 class DecoderModule(nn.Module):
-    def init(self): super().__init__()
+    def init(self):
+        super().__init__()
     
     def init_hidden(self, batch_size):
         """Initialize hidden states."""
@@ -53,12 +54,16 @@ class DecoderModule(nn.Module):
     def decode(self, v, v_mean, prev, h):
         """Decode process
         Given image features and previous word, return the distribution of next word.
-        v: [batch, num_objs, v_dim]
-        v_mean: [batch, v_dim]
-        prev: [batch, embed_dim]
-        h: [batch, hidden_dim]
+        Input:
+            v: [batch, num_objs, v_dim]
+            v_mean: [batch, v_dim]
+            prev: [batch, embed_dim]
+            h: [batch, hidden_dim]
+        Output:
+            h: [batch, hidden_dim]
+            word: [batch, ntoken]
         """
-        return h
+        pass
 
     def forward(self, batch):
         """Training process
@@ -100,15 +105,13 @@ class DecoderModule(nn.Module):
             h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
             
             # Save the results
-            output[:batch_t, t, :] = self.decode(
+            h, word = self.decode(
                 v=v[:batch_t],
                 v_mean=v_mean[:batch_t],
                 prev=caption[:batch_t, t, :],
                 h=h
             )
-        
-        # Softmax
-        output = self.softmax(output)
+            output[:batch_t, t, :] = word
         
         # Since decode starting with <start>, the targets are all words after <start>
         target = target[:,1:]
@@ -167,7 +170,7 @@ class BaseDecoder(DecoderModule):
         self.softmax = nn.Softmax(dim=1)
 
     def decode(self, v, v_mean, prev, h):
-        """Decode process: Given image features and previous word, return the distribution of next word
+        """Decode process
         """
         # Attention of image considering hidden state
         h0 = h[0] if self.rnn_type == 'LSTM' else h
@@ -177,9 +180,7 @@ class BaseDecoder(DecoderModule):
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
         h0 = h[0] if self.rnn_type == 'LSTM' else h
-
-        # Predict the possible output word
-        return self.fcnet(h0) # [batch_t, ntoken]
+        return h0, self.softmax(self.fcnet(h0))
 
 
 class BUTDDecoder(DecoderModule):
@@ -258,7 +259,4 @@ class BUTDDecoder(DecoderModule):
         # Second RNN: Language RNN
         h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-
-        # Predict the possible output word
-        h = self.h2_fcnet(h) # [batch_t, ntoken]
-        return h
+        return h, self.softmax(self.h2_fcnet(h))
