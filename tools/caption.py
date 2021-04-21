@@ -25,19 +25,19 @@ def decode_with_beam_search(
     """
     
     # Get visual features
-    v, _ = encoder(batch) # [1, num_objs, v_dim]
+    v = encoder(batch)['v'] # [1, num_objs, v_dim]
     num_objs = v.size(1)
     v_dim = v.size(2)
 
     # Initialize
     # Tensor to store top-k previous words (Initial: <start>)
-    prev_words = torch.Tensor([[vocab['<start>']]]).to(device) # [k, 1]
+    prev_words = torch.Tensor([[vocab['<start>']] for _ in range(k)], device=self.device) # [k, 1]
     # Tensor to store top-k sequences (Initial: <start>)
     seqs = prev_words
     # Tensor to store scores of top-k sequence
-    top_k_scores = torch.zeros(k, 1).to(device)
+    top_k_scores = torch.zeros(k, 1, device=self.device) # [k, 1]
     # Tensor to store alphas of top-k sequence
-    top_k_alphas = torch.ones(k, 1, num_objs, v_dim).to(device) # [k, num_objs, v_dim]
+    top_k_alphas = torch.ones(k, 1, num_objs, v_dim, device=self.device) # [k, num_objs, v_dim]
 
     # Lists to store completed sequences
     complete_seqs = list()
