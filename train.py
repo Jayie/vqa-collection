@@ -54,12 +54,14 @@ def train(  model, lr,
             warm_up: int = 0,
             step_size: int = 0,
             gamma: float = 0.25,
+            lr_vqa: float = 0,
+            lr_cap: float = 0,
 ): 
     """
     Train process.
     Input:
         model: the model we want to train
-        lr: learning rate
+        lr / lr_vqa / lr_cap: learning rate
         train_loader/val_loader: training/validation dataloader
         logger: logger for writing log file
         save_path: path for saving models
@@ -77,7 +79,12 @@ def train(  model, lr,
 
     """
     writer = SummaryWriter(comment=comment)
-    optimizer = torch.optim.Adamax(model.parameters())
+    lr_vqa = max(lr_vqa, lr)
+    lr_cap = max(lr_cap, lr)
+    params = [{'params': model.encoder.parameters()}]
+    if model.predictor: params.append({'params': model.predictor.parameters(), 'lr': lr_vqa})
+    if model.generator: params.append({'params': model.generator.parameters(), 'lr': lr_cap})
+    optimizer = torch.optim.Adamax(params, lr=lr)
     schedualer = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
     best_score = best_score
@@ -158,7 +165,7 @@ def train(  model, lr,
         # when an epoch is completed
         # save checkpoint
         torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}.pt')
-
+ 
         # If there is VQA module: evaluate
         if model.predictor != None:
             # evaluate
@@ -178,16 +185,13 @@ def train(  model, lr,
                 torch.save(model.state_dict(), f'{save_path}/best_model.pt')
                 best_score = eval_score
                 best_epoch = epoch
-
-            msg = f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}'
-            print(msg)
-            logger.write(msg)
+            logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
 
         # if not warm-up step: scheduler step
         if epoch >= warm_up and step_size != 0:
             schedualer.step()
-            temp = optimizer.param_groups[0]['lr']
-            print(f'lr={temp:.4f}')
+            lr = [param['lr'] for param in optimizer.param_groups]
+            logger.write(f'[LR] step: {lr}')
 
 
 def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None, save_path=None):

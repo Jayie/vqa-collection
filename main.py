@@ -66,7 +66,9 @@ def parse_args():
     parser.add_argument('--decoder_device', type=str, default='', help='device for decoder (model parallel)')
 
     # learning rate scheduler settings
-    parser.add_argument('--lr', type=float, default=0.002, help='learning rate')
+    parser.add_argument('--lr', type=float, default=0.002, help='general learning rate')
+    parser.add_argument('--lr_vqa', type=float, default=0, help='learning rate for VQA (default = 0 i.e. use the general lr)')
+    parser.add_argument('--lr_cap', type=float, default=0, help='learning rate for captioning (default = 0 i.e. use the general lr)')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
@@ -188,7 +190,12 @@ def main():
             comment=args.comment+'_train',
             start_epoch=args.start_epoch,
             batches = args.batches,
-            best_score = score
+            best_score = score,
+            warm_up = args.warm_up,
+            step_size = args.step_size,
+            gamma = args.gamma,
+            lr_vqa = args.lr_vqa,
+            lr_cap = args.lr_cap,
         )
 
     # Evaluate: after training process or for mode 'val'
