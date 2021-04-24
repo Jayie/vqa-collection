@@ -49,3 +49,7 @@ class Logger():
         self.log_file.write(time.strftime("%y%m%d-%H:%M:%S ", time.localtime())) # timestamp
         self.log_file.write(msg+'\n')
         self.log_file.flush()
+
+    def show(self, msg):
+        print(msg)
+        self.write(msg)

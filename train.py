@@ -174,7 +174,7 @@ def train(  model, lr,
             # save log
             avg_loss /= batches
             t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
-            logger.write(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
+            logger.show(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f} | score: {eval_score:.10f} ({t})')
             writer.add_scalar('train/eval', eval_score, epoch)
 
             # reset average loss
@@ -185,13 +185,13 @@ def train(  model, lr,
                 torch.save(model.state_dict(), f'{save_path}/best_model.pt')
                 best_score = eval_score
                 best_epoch = epoch
-            logger.write(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
+            logger.show(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
 
         # if not warm-up step: scheduler step
         if epoch >= warm_up and step_size != 0:
             schedualer.step()
             lr = [param['lr'] for param in optimizer.param_groups]
-            logger.write(f'[LR] step: {lr}')
+            logger.show(f'learning rate: {lr}')
 
 
 def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None, save_path=None):
@@ -233,7 +233,7 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     if logger:
         # Write to the log file
         t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
-        logger.write(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
+        logger.show(f'[{t}] evaluate score: {score:.10f} / bound: {target_score:.10f}')
     
     all_score = all_score.view(-1)
     all_label = all_label.view(-1)
