@@ -232,14 +232,14 @@ class CaptionAttention(nn.Module):
     
     def forward(self, h, v, q):
         """Input:
-            h: [batch, hidden_dim]
+            h: [batch, c_len, hidden_dim]
             v: [batch, v_dim]
             q: [batch, q_dim]
         Output: [batch, hidden_dim]
         """
         v = self.W_v(v) # [batch, hidden_dim]
         q = self.W_q(q) # [batch, hidden_dim]
-        h = self.logits(h, v) + self.logits(h, q) # [batch, hidden_dim]
+        h = self.logits(h, v) + self.logits(h, q) # [batch, c_len, hidden_dim]
         return self.sigmoid(h)
 
     
@@ -280,80 +280,78 @@ class CaptionEmbedding(nn.Module):
         # Prepare word embedding layer and sentence embedding layer.
         # Since we need to compute the attention for each time step, we use RNN cells here.
         assert rnn_type == 'LSTM' or rnn_type == 'GRU'
-        rnn_cls = nn.LSTMCell if rnn_type =='LSTM' else nn.GRUCell
-        self.word_rnn = rnn_cls(input_size=c_dim, hidden_size=c_dim)
-        self.caption_rnn = rnn_cls(input_size=c_dim, hidden_size=hidden_dim)
+        self.word_rnn = SentenceEmbedding(in_dim=c_dim, hidden_dim=hidden_dim, device=device, rnn_type=rnn_type)
+        self.caption_rnn = SentenceEmbedding(in_dim=hidden_dim, hidden_dim=hidden_dim, device=device, rnn_type=rnn_type)
         
         # prepare caption attention module
-        self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=c_dim, dropout=dropout)
+        self.attention = CaptionAttention(v_dim=v_dim, q_dim=q_dim, hidden_dim=hidden_dim, dropout=dropout)
         # fully-connected layer
         self.fcnet = LReLUNet(hidden_dim, hidden_dim, neg_slope)
 
-    def init_hidden(self, shape):
-        """Initialize hidden states."""
-        init = torch.zeros(shape, device=self.device)
-        if self.rnn_type == 'LSTM': return (init, init)
-        else: return init
+    def forward_all(self, v, q, c):
+        output, word_hidden = self.word_rnn.forward_all(c, word_hidden) # [batch, c_len, hidden_dim]
+        word_hidden = self.attention(word_hidden, v, q) # [batch, c_len, hidden_dim]
+        word_hidden = word_hidden.repeat(20,1,1).transpose(0,1)
+        output, _ = self.caption_rnn.forward_all(word_hidden*output, cap_hidden) # [batch, c_len, hidden_dim]
+        output = self.fcnet(output)
+        return output # [batch, c_len, hidden_dim]
 
-    def select_hidden(self, h, batch):
-        if self.rnn_type == 'LSTM': return (h[0][:batch], h[1][:batch])
-        else: return h[:batch]
-
-    def forward(self, v, q, caption, cap_len):
+    def forward(self, v, q, c):
         """Input:
             v: visual features [batch, v_dim]
             q: question embedding [batch, q_dim]
-            caption: caption embedding [batch, c_len, c_dim]
-            c_len: lengths for each input caption [batch, 1]
+            c: caption embedding [batch, c_len, c_dim]
         """
+        output = self.forward_all(v, q, c) # [batch, c_len, hidden_dim]
+        return output.max(dim=1)[0] # [batch, hidden_dim]
 
-        # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
-        cap_len, sort_id = cap_len.sort(dim=0, descending=True)
-        caption = caption[sort_id]
-        v = v[sort_id]
+        # # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
+        # cap_len, sort_id = cap_len.sort(dim=0, descending=True)
+        # caption = caption[sort_id]
+        # v = v[sort_id]
 
-        # Initialize RNN states
-        batch = caption.size(0)
-        h1 = self.init_hidden((batch, self.c_dim)) # [batch, c_dim]
-        h2 = self.init_hidden((batch, self.hidden_dim)) # [batch, hidden_dim]
+        # # Initialize RNN states
+        # batch = caption.size(0)
+        # h1 = self.init_hidden((batch, self.c_dim)) # [batch, c_dim]
+        # h2 = self.init_hidden((batch, self.hidden_dim)) # [batch, hidden_dim]
 
-        # Create tensor to hold the caption embedding after all time steps
-        output = torch.zeros(batch, self.max_len, self.hidden_dim, device=self.device)
-        # alphas = torch.zeros(batch, self.max_len, self.c_dim, device=self.device)
+        # # Create tensor to hold the caption embedding after all time steps
+        # output = torch.zeros(batch, self.max_len, self.hidden_dim, device=self.device)
+        # # alphas = torch.zeros(batch, self.max_len, self.c_dim, device=self.device)
 
-        # This list is for saving the batch size for each time step
-        batches = []
-        # For each time step:
-        for t in range(max(cap_len)):
-            # Only encode captions which is longer than t (ignore <pad>)
-            batch_t = sum([l > t for l in cap_len])
-            batches.append(batch_t)
-            h1 = self.select_hidden(h1, batch_t)
-            h2 = self.select_hidden(h2, batch_t)
+        # # This list is for saving the batch size for each time step
+        # batches = []
+        # # For each time step:
+        # for t in range(max(cap_len)):
+        #     # Only encode captions which is longer than t (ignore <pad>)
+        #     batch_t = sum([l > t for l in cap_len])
+        #     batches.append(batch_t)
+        #     h1 = self.select_hidden(h1, batch_t)
+        #     h2 = self.select_hidden(h2, batch_t)
 
-            # 1: Word RNN
-            # Input = caption: [batch_t, q_dim], h1: [batch_t, c_dim]
-            # Output = h1: [batch_t, c_dim]
-            h1 = self.word_rnn(caption[:batch_t, t, :], h1)
-            h = h1[0] if self.rnn_type == 'LSTM' else h1
+        #     # 1: Word RNN
+        #     # Input = caption: [batch_t, q_dim], h1: [batch_t, c_dim]
+        #     # Output = h1: [batch_t, c_dim]
+        #     h1 = self.word_rnn(caption[:batch_t, t, :], h1)
+        #     h = h1[0] if self.rnn_type == 'LSTM' else h1
 
-            # Attention
-            att = self.attention(h, v[:batch_t, :], q[:batch_t, :]) # [batch_t, c_dim]
-            att = att * caption[:batch_t, t, :] # [batch_t, c_dim]
+        #     # Attention
+        #     att = self.attention(h, v[:batch_t, :], q[:batch_t, :]) # [batch_t, c_dim]
+        #     att = att * caption[:batch_t, t, :] # [batch_t, c_dim]
 
-            # 2: Caption RNN
-            # Input = att_c: [batch_t, c_dim], h2 = [batch_t, hidden_dim]
-            # Output = h2: [batch_t, hidden_dim]
-            h2 = self.caption_rnn(att, h2)
-            h = h2[0] if self.rnn_type == 'LSTM' else h2
+        #     # 2: Caption RNN
+        #     # Input = att_c: [batch_t, c_dim], h2 = [batch_t, hidden_dim]
+        #     # Output = h2: [batch_t, hidden_dim]
+        #     h2 = self.caption_rnn(att, h2)
+        #     h = h2[0] if self.rnn_type == 'LSTM' else h2
 
-            # Fully-connected layer
-            h = self.fcnet(h)
+        #     # Fully-connected layer
+        #     h = self.fcnet(h)
 
-            # Save the results
-            output[:batch_t, t, :] = h
-            # alphas[:batch_t, t, :] = att
-        # Element-wise max pooling
-        output = output.max(dim=1).values # [batch, hidden_dim]
+        #     # Save the results
+        #     output[:batch_t, t, :] = h
+        #     # alphas[:batch_t, t, :] = att
+        # # Element-wise max pooling
+        # output = output.max(dim=1).values # [batch, hidden_dim]
 
-        return output[sort_id.argsort()]
+        # return output[sort_id.argsort()]

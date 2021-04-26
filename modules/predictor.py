@@ -184,7 +184,7 @@ class PredictorwithCaption(nn.Module):
 
         # Caption embedding
         v = batch['v'].sum(1) # [batch, v_dim]
-        c = self.caption_embedding(v, batch['q'], batch['c'], batch['cap_len']) # [batch, hidden_dim]
+        c = self.caption_embedding(v, batch['q'], batch['c']) # [batch, hidden_dim]
         # c = batch['c'].to(self.device).sum(1) # [batch, hidden_dim]
 
         # Produce caption-attended visual features
