@@ -74,7 +74,8 @@ class BasePredictor(nn.Module):
             in_dim=hidden_dim,
             mid_dim=2*hidden_dim,
             out_dim=ans_dim,
-            layer=cls_layer, dropout=dropout
+            layer=cls_layer,
+            dropout=dropout
         )
 
     def forward(self, batch):
@@ -110,7 +111,7 @@ class BaseCaptionPredictor(BasePredictor):
             device=device,
             rnn_type='GRU'
         )
-        self.c_net = FCNet(hidden_dim, hidden_dim)
+        self.c_net = FCNet(hidden_dim, hidden_dim, dropout=dropout)
     
     def forward(self, batch):
         v = batch['v'].to(self.device)
@@ -126,7 +127,7 @@ class BaseCaptionPredictor(BasePredictor):
         # FC layers
         v = self.v_net(v) # [batch, hidden_dim]
 
-        # Joint visual and caption embedding (concat)
+        # Joint visual and caption embedding (add)
         joint = c + v
         
         # Joint question features (multiply)

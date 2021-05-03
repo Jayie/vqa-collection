@@ -70,7 +70,7 @@ def set_model(  encoder_type: str = 'base',
                 pretrained_embed_path: str = ''
 ):
     if decoder_device == '':
-        print('set same as device')
+        print('use same device')
         decoder_device = device
     return Wrapper( set_encoder(
                         encoder_type=encoder_type,
