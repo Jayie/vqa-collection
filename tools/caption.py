@@ -1,105 +1,109 @@
 import numpy as np
 import torch
+from tqdm import tqdm
+from queue import PriorityQueue
+
+
+class BeamSearchNode(object):
+    """Data structure for Beam Search"""
+    def __init__(self, h, prev, word, score, length):
+        self.h = h
+        self.prev = prev
+        self.word = word
+        self.score = score
+        self.length = length
+    def eval(self, alpha=1.0):
+        reward = 0 # for shaping a reward
+        return self.score / float(self.length - 1 + 1e-6) + alpha * reward
+    def __repr__(self):
+        return f'l={self.length}: word={self.word}, score={self.score}'
+
 
 def decode_with_beam_search(
-    encoder,
-    decoder,
+    model,
     batch: dict,
-    vocab: dict,
-    device: str,
+    vocab_list: list,
     c_len: int = 20,
-    k: int = 3
+    k: int = 3,
+    time_limit: int = 2000
 ):
-    """Generate captions with Beam Search. (Reference: https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning)
-    Input:
-        encoder: encoder model
-        decoder: decoder model
-        batch: datas in one batch
-        vocab: word dictionary
-        device: device
-        c_len: max length of captions
-        k: select top-k candidates (default = 3)
-    Output:
-        generated_caption
-        alpha
     """
-    
-    # Get visual features
-    v = encoder(batch)['v'] # [1, num_objs, v_dim]
-    num_objs = v.size(1)
-    v_dim = v.size(2)
+    reference: https://github.com/budzianowski/PyTorch-Beam-Search-Decoding
+    """
+    batch_size = batch['id'].size(0)
+    device = model.generator.device
+    decoded_batch = []
 
-    # Initialize
-    # Tensor to store top-k previous words (Initial: <start>)
-    prev_words = torch.Tensor([[vocab['<start>']] for _ in range(k)], device=self.device) # [k, 1]
-    # Tensor to store top-k sequences (Initial: <start>)
-    seqs = prev_words
-    # Tensor to store scores of top-k sequence
-    top_k_scores = torch.zeros(k, 1, device=self.device) # [k, 1]
-    # Tensor to store alphas of top-k sequence
-    top_k_alphas = torch.ones(k, 1, num_objs, v_dim, device=self.device) # [k, num_objs, v_dim]
+    model.eval()
 
-    # Lists to store completed sequences
-    complete_seqs = list()
-    complete_alphas = list()
-    complete_scores = list()
-
-    # Start decoding
-    step = 1
-    h1 = decoder.init_hidden(1)
-    h2 = decoder.init_hidden(1)
-    while True:
-        scores, h1, h2, alpha = decoder.decode(v, prev_words, h1, h2)
-
-        # Add
-        # scores = top_k_scores.expand_as(scores) + scores
-        # Error?
-
-        # For the first step, all k points will have the same scores
-        # (since same k previous word, h, c)
-        if step == 1:
-            top_k_scores, top_k_words = scores[0].topk(k, 0, True, True)
-        else:
-            # Unroll and find top scores, and their unrolled indices
-            top_k_scores, top_k_words = scores.view(-1).topk(k, 0, True, True)
-
-        ###########################################################################
-        # TODO: Check result
-        ###########################################################################
-
-        # Convert unrolled indices to actual indices of scores
-        prev_word = top_k_words / len(vocab)
-        next_word = top_k_words % len(vocab)
-
-        # Add new words to sequences
-        seqs = torch.cat([seqs[prev_word], next_word.unsqueeze(1)], dim=1) # [num_seq, step+1]
-        top_k_alphas = torch.cat([top_k_alphas[prev_word], alpha[prev_word].unsqueeze(1)], dim=1) # [num_seq, step+1, num_objs]
-
-        # Find incomplete sequences (didn't reach <end>)
-        incomplete_inds = [ind for ind, next_word in enumerate(next_word) if next_word != vocab['<end>']]
-        complete_inds = list(set(range(len(next_word))) - set(incomplete_inds))
-
-        # Set aside complete sequence
-        if len(complete_inds) > 0:
-            complete_seqs.extend(seqs[complete_inds].tolist())
-            complete_scores.extend(top_k_scores[complete_inds].tolist())
-            complete_alphas.extend(top_k_alphas[complete_inds].tolist())
+    with torch.no_grad():
+        embed = model.encoder(batch)
         
-        k -= len(complete_inds) # Reduce Beam length accordingly
-        if k == 0: break # If all sequences reach <end>: end of while loop
+        for i in tqdm(range(batch_size), desc='decode'):
+            v = embed['v'][i].unsqueeze(0)
+            v_mean = v.mean(1).to(device)
+            h = model.generator.init_hidden(1)
+            start = torch.LongTensor([[vocab_list.index('<start>')]]).to(device)
 
-        # Proceed with incomplete sequences
-        h1 = h1[prev_word[incomplete_inds]]
-        h2 = h2[prev_word[incomplete_inds]]
-        seqs = seqs[incomplete_inds]
-        top_k_alphas = top_k_alphas[incomplete_inds]
-        top_k_scores = top_k_scores[incomplete_inds].unsqueeze(1)
-        prev_words = next_word[incomplete_inds].unsqueeze(1)
+            # Number of sentences to generate
+            endnodes = []
 
-        # Break if length out of range
-        if step > c_len: break
-        step += 1
+            # Initialize beam search queue
+            nodes = PriorityQueue()
+            node = BeamSearchNode(h=h, prev=None, word=start, score=0, length=1)
+            nodes.put((-node.eval(), node))
+            q_size = 1
 
-    # Return the sequence with the highest score
-    i = complete_scores.index(max(complete_scores))
-    return complete_seqs[i], complete_alphas[i]
+            while True:
+                # Give up when decoding takes too long
+                if q_size > 2000: break
+
+                # fetch the best word
+                score, prev = nodes.get()
+
+                # Record if reach the end of sentence
+                if (prev.word == vocab_list.index('<end>') and prev.prev != None):
+                    endnodes.append((score, prev))
+                    # Break when we get enough generated sentences
+                    if len(endnodes) >= k: break
+                    else: continue
+
+                # Get word embedding and hidden state of previous word
+                word = torch.LongTensor([[prev.word]]).to(device)
+                h = prev.h.to(device)
+                encode = model.encoder.embedding(word).squeeze(1)
+
+                # Decode
+                h, score = model.generator.decode(v=v, prev=encode, v_mean=v_mean, h=h)
+
+                # Get top-k prediction
+                score, word_id = score.topk(k=k, largest=True, sorted=True)
+
+                # Put into queue
+                for j in range(k):
+                    node = BeamSearchNode(
+                        h=h,
+                        prev=prev,
+                        word=word_id[0,j],
+                        score=score[0,j].item(),
+                        length=prev.length+1
+                    )
+                    nodes.put((node.eval(), node))
+
+                q_size += k - 1
+
+            # Chose k-best paths
+            if len(endnodes) == 0:
+                l = k-len(endnodes)
+                endnodes = [nodes.get() for _ in range(l)]
+
+            output = []
+            for score, node in sorted(endnodes, key=lambda x: -x[0]):
+                seq = []
+                while node is not None:
+                    seq.append(vocab_list[node.word])
+                    node = node.prev
+                output.append((score, ' '.join(seq[::-1])))
+            decoded_batch.append(output.copy())
+
+    return decoded_batch
