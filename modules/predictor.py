@@ -16,6 +16,7 @@ def set_predictor(predictor_type: str,
                   dropout: float,
                   c_len: int,
                   neg_slope: float,
+                  device: str,
     ):
     if predictor_type == 'base':
         return BasePredictor(
@@ -25,7 +26,7 @@ def set_predictor(predictor_type: str,
             device=device,
             cls_layer=cls_layer,
             dropout=dropout
-        )
+        ).to(device)
 
     if predictor_type == 'base-cap':
         return BaseCaptionPredictor(
@@ -36,7 +37,7 @@ def set_predictor(predictor_type: str,
             device=device,
             cls_layer=cls_layer,
             dropout=dropout
-        )
+        ).to(device)
     
     if predictor_type == 'q-cap':
         return PredictorwithCaption(
@@ -49,7 +50,7 @@ def set_predictor(predictor_type: str,
             cls_layer=cls_layer,
             dropout=dropout,
             neg_slope=neg_slope
-        )
+        ).to(device)
 
 class BasePredictor(nn.Module):
     """

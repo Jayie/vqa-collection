@@ -19,6 +19,7 @@ def set_decoder(decoder_type: str,
                 dropout: float,
                 rnn_type: str,
                 att_type: str,
+                device: str,
     ):
     if decoder_type == 'none': return
     return {
@@ -34,7 +35,7 @@ def set_decoder(decoder_type: str,
         dropout=dropout,
         rnn_type=rnn_type,
         att_type=att_type
-    )
+    ).to(device)
 
 
 class DecoderModule(nn.Module):

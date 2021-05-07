@@ -154,8 +154,9 @@ def set_model(  encoder_type: str = 'base',
                         att_type=att_type,
                         conv_type=conv_type,
                         conv_layer=conv_layer,
-                        vocab_path=pretrained_embed_path
-                    ).to(device),
+                        device=device,
+                        vocab_path=pretrained_embed_path,
+                    ),
                     predictor = set_predictor(
                         predictor_type=predictor_type,
                         v_dim=v_dim,
@@ -166,8 +167,9 @@ def set_model(  encoder_type: str = 'base',
                         cls_layer=cls_layer,
                         dropout=dropout,
                         c_len=c_len,
-                        neg_slope=neg_slope
-                    ).to(device) if predictor_type != 'none' else None,
+                        neg_slope=neg_slope,
+                        device=device
+                    )
                     generator = set_decoder(
                         decoder_type=decoder_type,
                         ntoken=ntoken,
@@ -178,7 +180,8 @@ def set_model(  encoder_type: str = 'base',
                         device=decoder_device,
                         dropout=dropout,
                         rnn_type=rnn_type,
-                        att_type=att_type
+                        att_type=att_type,
+                        device=device,
                     ).to(decoder_device) if decoder_type != 'none' else None,
                     use_mtl = use_mtl
             )

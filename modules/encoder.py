@@ -19,7 +19,8 @@ def set_encoder(encoder_type: str,
                 att_type: str,
                 conv_type: str,
                 conv_layer: int,
-                vocab_path: str = ''
+                device: str,
+                vocab_path: str = '',
     ):
     if encoder_type == 'base':
         model = BaseEncoder(
@@ -49,7 +50,7 @@ def set_encoder(encoder_type: str,
         )
     if vocab_path != '':
         model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
-    return model
+    return model.to(device)
 
 # This model is based on the winning entry of the 2017 VQA Challenge, following the system described in 
 # 'Bottom-Up ad Top-Down Attention for Image Captioning and Visual Question Answering' (https://arxiv.org/abs/1707.07998) and 
