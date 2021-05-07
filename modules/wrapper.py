@@ -135,12 +135,13 @@ def set_model(  encoder_type: str = 'base',
                 conv_layer: int = 2,
                 conv_type: str = 'corr',
                 decoder_device: str = '',
-                pretrained_embed_path: str = ''
+                pretrained_embed_path: str = '',
+                use_mtl: bool = False,
 ):
     if decoder_device == '':
         print('use same device')
         decoder_device = device
-    return Wrapper( set_encoder(
+    return Wrapper( encoder = set_encoder(
                         encoder_type=encoder_type,
                         ntoken=ntoken,
                         v_dim=v_dim,
@@ -155,7 +156,7 @@ def set_model(  encoder_type: str = 'base',
                         conv_layer=conv_layer,
                         vocab_path=pretrained_embed_path
                     ).to(device),
-                    set_predictor(
+                    predictor = set_predictor(
                         predictor_type=predictor_type,
                         v_dim=v_dim,
                         embed_dim=embed_dim,
@@ -167,7 +168,7 @@ def set_model(  encoder_type: str = 'base',
                         c_len=c_len,
                         neg_slope=neg_slope
                     ).to(device) if predictor_type != 'none' else None,
-                    set_decoder(
+                    generator = set_decoder(
                         decoder_type=decoder_type,
                         ntoken=ntoken,
                         embed_dim=embed_dim,
@@ -178,5 +179,6 @@ def set_model(  encoder_type: str = 'base',
                         dropout=dropout,
                         rnn_type=rnn_type,
                         att_type=att_type
-                    ).to(decoder_device) if decoder_type != 'none' else None
+                    ).to(decoder_device) if decoder_type != 'none' else None,
+                    use_mtl = use_mtl
             )

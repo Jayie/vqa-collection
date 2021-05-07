@@ -72,6 +72,7 @@ def parse_args():
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
+    parser.add_argument('--use_mtl', type=bool, default=False, help='use weighted loss or not (default = False)')
 
     # training/validating process settings
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
@@ -127,6 +128,7 @@ def main():
                         conv_type=args.conv_type,
                         decoder_device=args.decoder_device,
                         pretrained_embed_path=args.pretrained_embed_path,
+                        use_mtl=args.use_mtl,
                     )
     print('model ready.')
 
