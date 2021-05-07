@@ -16,7 +16,6 @@ def set_predictor(predictor_type: str,
                   dropout: float,
                   c_len: int,
                   neg_slope: float,
-                  device: str,
     ):
     if predictor_type == 'base':
         return BasePredictor(
