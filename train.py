@@ -8,35 +8,35 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
 
-def compute_score(predict, target, device, get_label=False):
-    """Compute score (according to the VQA evaluation metric)"""
-    predict = predict.to(device)
-    target = target.to(device)
+# def compute_score(predict, target, device, get_label=False):
+#     """Compute score (according to the VQA evaluation metric)"""
+#     predict = predict.to(device)
+#     target = target.to(device)
 
-    # get the most possible predicted results for each question
-    logits = torch.max(predict, 1)[1].data
+#     # get the most possible predicted results for each question
+#     logits = torch.max(predict, 1)[1].data
 
-    # transfer predicted results into one-hot encoding
-    one_hots = torch.zeros(*target.size()).to(device)
-    one_hots.scatter_(1, logits.view(-1, 1), 1)
+#     # transfer predicted results into one-hot encoding
+#     one_hots = torch.zeros(*target.size()).to(device)
+#     one_hots.scatter_(1, logits.view(-1, 1), 1)
 
-    scores = one_hots * target
-    if get_label: return scores, logits
-    return scores
-
-
-def instance_bce_with_logits(predict, target):
-    """Loss function for VQA prediction"""
-    loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
-    loss *= target.size(1)
-    return loss
+#     scores = one_hots * target
+#     if get_label: return scores, logits
+#     return scores
 
 
-def ce_for_language_model(predict, target):
-    """ Loss function for caption generation"""
-    assert predict.dim() == 2
-    loss = nn.functional.cross_entropy(predict, target)
-    return loss
+# def instance_bce_with_logits(predict, target):
+#     """Loss function for VQA prediction"""
+#     loss = nn.functional.binary_cross_entropy_with_logits(predict, target)
+#     loss *= target.size(1)
+#     return loss
+
+
+# def ce_for_language_model(predict, target):
+#     """ Loss function for caption generation"""
+#     assert predict.dim() == 2
+#     loss = nn.functional.cross_entropy(predict, target)
+#     return loss
 
 
 def train(  model, lr,
@@ -105,39 +105,42 @@ def train(  model, lr,
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
             
-            predict, caption, _ = model(batch)
-            loss = torch.tensor(0, dtype=torch.float).to(device)
-            # For VQA
-            if predict != None:
-                target = batch['a'].float().to(device)
-                loss_vqa = instance_bce_with_logits(predict, target)
-                loss += loss_vqa
+            loss, write, _ = model.get_loss(batch)
+            for k, v in write.items():
+                writer.add_scalar(k, v, epoch * batches + i)
+            # predict, caption, _ = model(batch)
+            # loss = torch.tensor(0, dtype=torch.float).to(device)
+            # # For VQA
+            # if predict != None:
+            #     target = batch['a'].float().to(device)
+            #     loss_vqa = instance_bce_with_logits(predict, target)
+            #     loss += loss_vqa
 
-                # write to Tensorboard
-                score = compute_score(predict, target, device).sum().item()
-                writer.add_scalar('train/loss', loss_vqa.item(), epoch * batches + i)
-                writer.add_scalar('train/score', score, epoch * batches + i)
+            #     # write to Tensorboard
+            #     score = compute_score(predict, target, device).sum().item()
+            #     writer.add_scalar('train/loss', loss_vqa.item(), epoch * batches + i)
+            #     writer.add_scalar('train/score', score, epoch * batches + i)
                 
-                # Delete used objects
-                predict.detach()
-                target.detach()
-                loss_vqa.detach()
-                del predict
-                del target
-                del loss_vqa
+            #     # Delete used objects
+            #     predict.detach()
+            #     target.detach()
+            #     loss_vqa.detach()
+            #     del predict
+            #     del target
+            #     del loss_vqa
 
-            # For captioning
-            if caption != None:
-                loss_cap = ce_for_language_model(caption['predict'], caption['target'])
-                loss += loss_cap.to(device)
+            # # For captioning
+            # if caption != None:
+            #     loss_cap = ce_for_language_model(caption['predict'], caption['target'])
+            #     loss += loss_cap.to(device)
 
-                # Write to Tensorboard
-                writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
+            #     # Write to Tensorboard
+            #     writer.add_scalar('train/cap/loss', loss_cap.item(), epoch * batches + i)
                 
-                # Delete used objects
-                loss_cap.detach()
-                del loss_cap
-                del caption
+            #     # Delete used objects
+            #     loss_cap.detach()
+            #     del loss_cap
+            #     del caption
             
 
             ##############################################################################################################################
@@ -214,11 +217,10 @@ def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index
     start = time.time()
     with torch.no_grad():
         for i, batch in enumerate(tqdm(dataloader, desc='evaluate')):
-            target = batch['a'].float().to(device)
-            batch_size = target.size(0)
-            predict = model.forward_vqa(batch) # predict = [batch_size, ans_dim]
-            batch_score, label = compute_score(predict, target, device, True)
-
+            # predict = model.forward_vqa(batch) # predict = [batch_size, ans_dim]
+            # batch_score, label = compute_score(predict, target, device, True)
+            batch_score, label, target = model.forward_vqa(batch)
+            batch_size = batch_score.size(0)
             score += batch_score.sum().item()
             target_score += target.max(1)[0].sum().item()
             all_score[i,:batch_size] = batch_score.sum(dim=1)
