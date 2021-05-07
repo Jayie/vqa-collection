@@ -19,7 +19,6 @@ def set_encoder(encoder_type: str,
                 att_type: str,
                 conv_type: str,
                 conv_layer: int,
-                device: str,
                 vocab_path: str = '',
     ):
     if encoder_type == 'base':

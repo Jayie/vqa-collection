@@ -154,7 +154,6 @@ def set_model(  encoder_type: str = 'base',
                         att_type=att_type,
                         conv_type=conv_type,
                         conv_layer=conv_layer,
-                        device=device,
                         vocab_path=pretrained_embed_path,
                     ),
                     predictor = set_predictor(
