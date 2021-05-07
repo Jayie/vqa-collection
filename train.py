@@ -105,7 +105,7 @@ def train(  model, lr,
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
             
-            loss, write, _ = model.get_loss(batch)
+            loss, write = model.get_loss(batch)
             for k, v in write.items():
                 writer.add_scalar(k, v, epoch * batches + i)
             # predict, caption, _ = model(batch)

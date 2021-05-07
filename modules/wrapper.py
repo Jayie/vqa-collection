@@ -98,7 +98,7 @@ class Wrapper(nn.Module):
             write['train/cap/loss'] = loss_cap.item()
         
         loss = torch.mean(loss)
-        return loss, write, self.log_vars.data.tolist()
+        return loss, write
 
 
     def forward_vqa(self, batch):
