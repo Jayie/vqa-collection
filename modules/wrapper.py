@@ -169,7 +169,7 @@ def set_model(  encoder_type: str = 'base',
                         c_len=c_len,
                         neg_slope=neg_slope,
                         device=device
-                    )
+                    ),
                     generator = set_decoder(
                         decoder_type=decoder_type,
                         ntoken=ntoken,
