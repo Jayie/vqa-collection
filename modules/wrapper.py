@@ -167,7 +167,6 @@ def set_model(  encoder_type: str = 'base',
                         dropout=dropout,
                         c_len=c_len,
                         neg_slope=neg_slope,
-                        device=device
                     ),
                     generator = set_decoder(
                         decoder_type=decoder_type,
@@ -180,7 +179,6 @@ def set_model(  encoder_type: str = 'base',
                         dropout=dropout,
                         rnn_type=rnn_type,
                         att_type=att_type,
-                        device=device,
                     ).to(decoder_device) if decoder_type != 'none' else None,
                     use_mtl = use_mtl
             )
