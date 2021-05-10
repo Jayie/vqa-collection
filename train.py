@@ -105,9 +105,9 @@ def train(  model, lr,
         for i, batch in enumerate(tqdm(train_loader, desc=f'Epoch {epoch}')):
             if i == batches: break
             
-            loss, write = model.get_loss(batch)
-            for k, v in write.items():
-                writer.add_scalar(k, v, epoch * batches + i)
+            loss, writes = model.get_loss(batch)
+            for tag, write_value in writes.items():
+                writer.add_scalar(tag, write_value, epoch * batches + i)
 
             ##############################################################################################################################
             # TODO: Back prop. strategy for 'Generating Question Relevant Captions to Aid Visual Question Answering'

@@ -11,6 +11,8 @@ def sample_one_batch(dataset, sample=0):
     batch['feature_path'] = dataset.feature_path
     batch['q_word'] = dataset.questions[sample]['q_word']
     batch['target'] = dataset.answers[sample]
+    img_id = str(int(dataset.questions[sample]['img_file'][-16:-4]))
+    batch['c_word'] = dataset.captions[img_id]['c_word'][dataset.caption_id[sample]]
     data = dataset[sample]
     for i in data:
         if type(data[i]) == np.ndarray:
@@ -78,10 +80,11 @@ def show_graph_att(model, dataset, ans_list, sample=0, img_path='../COCO', k=3, 
     
     # Print results
     print('Q:', batch['q_word'])
-    print('\npredict: ', ans_list[torch.argmax(predict).item()])
-    print('\ntarget:')
+    print('C:', batch['c_word'])
+    print('target:')
     for i, j in batch['target'].items():
         print(f'{min(j,3)/3:.2f}', ans_list[int(i)])
+    print('\npredict: ', ans_list[torch.argmax(predict).item()])
     return output
 
 

@@ -47,6 +47,7 @@ class Wrapper(nn.Module):
         # Multi-task loss weight
         # Multi-Task Learning Using Uncertainty to Weigh Losses for Scene Geometry and Semantics, CVPR 2018
         # Pytorch implementation reference: https://github.com/Hui-Li/multi-task-learning-example-PyTorch
+        if self.predictor is None or self.generator is None: use_mtl = False
         if use_mtl: self.log_vars = nn.Parameter(torch.zeros(2))
         self.use_mtl = use_mtl
 
@@ -77,28 +78,30 @@ class Wrapper(nn.Module):
     def get_loss(self, batch):
         predict, caption = self.forward(batch)
         loss = torch.tensor(0, dtype=torch.float).to(self.device)
-        write = {}
+        writes = {}
 
         if predict is not None:
             target = batch['a'].float().to(self.device)
             loss_vqa = instance_bce_with_logits(predict, target)
+            writes['train/loss'] = loss_vqa.item()
+            writes['train/score'] = compute_score(predict, target, self.device).sum().item()
+
             if self.use_mtl:
                 precision = torch.exp(-self.log_vars[0])
                 loss += torch.sum(precision * loss_vqa + self.log_vars[0])
             else: loss += loss_vqa
-            write['train/loss'] = loss_vqa.item()
-            write['train/score'] = compute_score(predict, target, self.device).sum().item()
 
         if caption is not None:
             loss_cap = ce_for_language_model(caption['predict'], caption['target'])
+            writes['train/cap/loss'] = loss_cap.item()
+
             if self.use_mtl:
                 precision = torch.exp(-self.log_vars[1])
                 loss += torch.sum(precision * loss_cap + self.log_vars[1])
             else: loss += loss_cap
-            write['train/cap/loss'] = loss_cap.item()
         
         loss = torch.mean(loss)
-        return loss, write
+        return loss, writes
 
     def get_att(self, batch):
         batch = self.encoder(batch)
