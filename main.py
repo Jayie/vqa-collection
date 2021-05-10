@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
-    parser.add_argument('--use_mtl', type=bool, default=False, help='use weighted loss or not (default = False)')
+    parser.add_argument('--use_mtl', type=bool, default=True, help='use weighted loss or not (default = True)')
 
     # training/validating process settings
     parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
