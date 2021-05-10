@@ -14,7 +14,7 @@ class BeamSearchNode(object):
         self.length = length
     def eval(self, alpha=1.0):
         reward = 0 # for shaping a reward
-        return self.score / float(self.length - 1 + 1e-6) + alpha * reward
+        return -self.score / float(self.length - 1 + 1e-6) + alpha * reward
     def __repr__(self):
         return f'l={self.length}: word={self.word}, score={self.score}'
 
@@ -51,7 +51,7 @@ def decode_with_beam_search(
             # Initialize beam search queue
             nodes = PriorityQueue()
             node = BeamSearchNode(h=h, prev=None, word=start, score=0, length=1)
-            nodes.put((-node.eval(), node))
+            nodes.put((node.eval(), node))
             q_size = 1
 
             while True:
@@ -61,8 +61,8 @@ def decode_with_beam_search(
                 # fetch the best word
                 score, prev = nodes.get()
 
-                # Record if reach the end of sentence
-                if (prev.word == vocab_list.index('<end>') and prev.prev != None):
+                # Record if reach the end of sentence or is too long
+                if (prev.word == vocab_list.index('<end>') or prev.length >= c_len) and prev.prev != None:
                     endnodes.append((score, prev))
                     # Break when we get enough generated sentences
                     if len(endnodes) >= k: break

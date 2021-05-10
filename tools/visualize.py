@@ -18,7 +18,7 @@ def sample_one_batch(dataset, sample=0):
             shape.extend(data[i].shape)
             batch[i] = torch.from_numpy(data[i].reshape(shape))
         else:
-            batch[i] = torch.Tensor([data[i]])
+            batch[i] = torch.tensor([data[i]])
     return batch
 
 
@@ -63,7 +63,7 @@ def show_graph_att(model, dataset, ans_list, sample=0, img_path='../COCO', k=3, 
     # Get prediction and graph attentions
     model.eval()
     with torch.no_grad():
-        predict, _, att = model(batch)
+        predict, att = model.get_att(batch)
         index = att.argmax().item()
         g_att = model.encoder(batch, True)[layer][0, index, :]
         g_att[index] = 1
@@ -93,7 +93,7 @@ def show_top_k_regions(model, dataset, ans_list, sample=0, img_path='../COCO', k
     # Get prediction and attention map
     model.eval()
     with torch.no_grad():
-        predict, _, att = model(batch)
+        predict, att = model.get_att(batch)
         att = att.squeeze()
 
     # Prepare image and bbox
