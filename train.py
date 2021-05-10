@@ -147,8 +147,6 @@ def train(  model, lr,
             # TODO: Back prop. strategy for 'Generating Question Relevant Captions to Aid Visual Question Answering'
             #       Suppose that datas in each batch share the same Q-A pair with different caption,
             #       our goal is to select the most relevant one (which means that the gradient of Q-A pair and the caption are similar)
-            #
-            # TODO: Reconstruct dataset and dataloader for this model
             ##############################################################################################################################
             
             # Back prop.

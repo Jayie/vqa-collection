@@ -72,10 +72,10 @@ class Wrapper(nn.Module):
         # If VQA module exists: get prediction
         predict = self.predictor(batch) if self.predictor else None
         
-        return predict, caption, batch['v_att']
+        return predict, caption
 
     def get_loss(self, batch):
-        predict, caption, _ = self.forward(batch)
+        predict, caption = self.forward(batch)
         loss = torch.tensor(0, dtype=torch.float).to(self.device)
         write = {}
 
@@ -99,6 +99,11 @@ class Wrapper(nn.Module):
         
         loss = torch.mean(loss)
         return loss, write
+
+    def get_att(self, batch):
+        batch = self.encoder(batch)
+        predict = self.predictor(batch)
+        return predict, batch['v_att']
 
 
     def forward_vqa(self, batch):
