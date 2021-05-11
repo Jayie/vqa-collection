@@ -42,7 +42,7 @@ def parse_args():
     # encoder settings
     parser.add_argument('--encoder_type', type=str, default='base', help='encoder type (base/relation, default = base)')
     parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU/LSTM, default = GRU)')
-    parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base)')
+    parser.add_argument('--att_type', type=str, default='new', help='attention layer type (base/new, default = base)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=1024, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
