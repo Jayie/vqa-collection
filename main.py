@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument('--conv_layer', type=int, default=1, help='the number of GCN layers')
 
     # use pre-trained word embedding
-    parser.add_argument('--pretrained_embed_path', type=str, default='../data/glove.6B/glove.6B.300d.txt ', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
+    parser.add_argument('--pretrained_embed_path', type=str, default='../data/glove.6B/glove.6B.300d.txt', help='path for pre-trained word embedding (default = \'\' means using embedding layer)')
 
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
