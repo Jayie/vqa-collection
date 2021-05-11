@@ -23,7 +23,7 @@ def parse_args():
     # save settings
     parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
     parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
-    parser.add_argument('--seed', type=int, default=10, help='random seed')
+    parser.add_argument('--seed', type=int, default=1111, help='random seed')
 
     # path settings
     parser.add_argument('--vocab_path', type=str, default='../data/vocab_list.txt', help='path for vocabulary list')
@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--rnn_type', type=str, default='GRU', help='RNN layer type (GRU/LSTM, default = GRU)')
     parser.add_argument('--att_type', type=str, default='base', help='attention layer type (base/new, default = base)')
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
-    parser.add_argument('--hidden_dim', type=int, default=512, help='the dimension of hidden layers (default = 512)')
+    parser.add_argument('--hidden_dim', type=int, default=1024, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
     parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
@@ -62,13 +62,13 @@ def parse_args():
 
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
-    parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
+    parser.add_argument('--decoder_hidden_dim', type=int, default=256, help='the dimension of hidden layers in decoder (default = 512)')
     parser.add_argument('--decoder_device', type=str, default='', help='device for decoder (model parallel)')
 
     # learning rate scheduler settings
     parser.add_argument('--lr', type=float, default=0.002, help='general learning rate')
     parser.add_argument('--lr_vqa', type=float, default=0, help='learning rate for VQA (default = 0 i.e. use the general lr)')
-    parser.add_argument('--lr_cap', type=float, default=0, help='learning rate for captioning (default = 0 i.e. use the general lr)')
+    parser.add_argument('--lr_cap', type=float, default=4e-4, help='learning rate for captioning (default = 0 i.e. use the general lr)')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')

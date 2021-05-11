@@ -14,9 +14,9 @@ class BeamSearchNode(object):
         self.length = length
     def eval(self, alpha=1.0):
         reward = 0 # for shaping a reward
-        return -self.score / float(self.length - 1 + 1e-6) + alpha * reward
+        return -(self.score / float(self.length - 1 + 1e-6) + alpha * reward)
     def __repr__(self):
-        return f'l={self.length}: word={self.word}, score={self.score}'
+        return f'BSNode(l={self.length}: word={self.word}, score={self.score})'
 
 
 def decode_with_beam_search(
