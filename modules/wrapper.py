@@ -47,7 +47,7 @@ class Wrapper(nn.Module):
         # Multi-task loss weight
         # Multi-Task Learning Using Uncertainty to Weigh Losses for Scene Geometry and Semantics, CVPR 2018
         # Pytorch implementation reference: https://github.com/Hui-Li/multi-task-learning-example-PyTorch
-        if self.predictor is None or self.generator is None: use_mtl = False
+        if self.predictor is None or self.generator is None: use_mtl = False # set False if single task
         if use_mtl: self.log_vars = nn.Parameter(torch.zeros(2))
         self.use_mtl = use_mtl
 

@@ -171,8 +171,9 @@ def main():
         score = 0.0
         if args.start_epoch != 0:
             model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
-            score, _ = evaluate(model, val_loader, args.device)
-            print(f'best score: {score:.4f}')
+            if model.predictor is not None:
+                score, _ = evaluate(model, val_loader, args.device)
+                print(f'best score: {score:.4f}')
 
             model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}.pt'))
             print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}.pt')
