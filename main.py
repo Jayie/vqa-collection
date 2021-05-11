@@ -170,8 +170,8 @@ def main():
         # if need to train continously, load the previous status of model
         score = 0.0
         if args.start_epoch != 0:
-            model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
             if model.predictor is not None:
+                model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
                 score, _ = evaluate(model, val_loader, args.device)
                 print(f'best score: {score:.4f}')
 
