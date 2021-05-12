@@ -16,12 +16,33 @@ from sample import sample_vqa
 from modules.wrapper import set_model
 from util.utils import *
 
+
+class Argument():
+    def __init__(self, load_path):
+        with open(os.path.join(load_path, 'param.pkl'), 'rb') as f:
+            inputs = pickle.load(f)
+            
+        for key, value in inputs.items():
+            setattr(self, key, value)
+    
+    def __repr__(self):
+        output = ''
+        for k, v in self.__dict__.items():
+            output = output + f'{k}: {v}' + '\n'
+        return output
+    
+    def save(self):
+        with open(os.path.join(load_path, 'param.pkl'), 'wb') as f:
+            pickle.dump(self.__dict__, f)
+
+
 def parse_args():
     # set parameters
     parser = argparse.ArgumentParser()
 
     # save settings
     parser.add_argument('--comment', type=str, default='exp1', help='comment for Tensorboard')
+    parser.add_argument('--load_setting', type=bool, default=False, help='if true, load param.pkl as model setting (default=False)')
     parser.add_argument('--device', type=str, default='', help='set device (automatically select if not assign)')
     parser.add_argument('--seed', type=int, default=1111, help='random seed')
 
@@ -87,6 +108,7 @@ def parse_args():
 def main():
     # get parameters
     args = parse_args()
+    if args.load_setting: args = Argument(os.path.join('checkpoint', args.comment, 'param.pkl'))
 
     ###### settings ######
     # prepare logger
