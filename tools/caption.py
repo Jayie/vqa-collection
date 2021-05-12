@@ -4,19 +4,37 @@ from tqdm import tqdm
 from queue import PriorityQueue
 
 
+from queue import PriorityQueue
 class BeamSearchNode(object):
     """Data structure for Beam Search"""
-    def __init__(self, h, prev, word, score, length):
+    def __init__(self, h, prev, word, logp, length):
+        """
+        h: hidden state
+        prev: pointer of previous node
+        word: word id
+        logp: log probability
+        length: length of sequence
+        """
         self.h = h
         self.prev = prev
         self.word = word
-        self.score = score
+        self.logp = logp
         self.length = length
+        
     def eval(self, alpha=1.0):
         reward = 0 # for shaping a reward
-        return -(self.score / float(self.length - 1 + 1e-6) + alpha * reward)
+        return -(self.logp / float(self.length - 1 + 1e-6) + alpha * reward)
+    
     def __repr__(self):
-        return f'BSNode(l={self.length}: word={self.word}, score={self.score})'
+        return f'BSNode(l={self.length}: word={self.word}, logp={self.logp})'
+    
+    def __eq__(self, other):
+        if other is None: return False
+        return self.eval() == other.eval()
+    
+    def __lt__(self, other):
+        if other is None: return True
+        return self.eval() < other.eval()
 
 
 def decode_with_beam_search(
@@ -38,8 +56,9 @@ def decode_with_beam_search(
 
     with torch.no_grad():
         embed = model.encoder(batch)
-        
-        for i in tqdm(range(batch_size), desc='decode'):
+
+        for i in tqdm(range(batch_size)):
+            # Initialize
             v = embed['v'][i].unsqueeze(0)
             v_mean = v.mean(1).to(device)
             h = model.generator.init_hidden(1)
@@ -50,7 +69,7 @@ def decode_with_beam_search(
 
             # Initialize beam search queue
             nodes = PriorityQueue()
-            node = BeamSearchNode(h=h, prev=None, word=start, score=0, length=1)
+            node = BeamSearchNode(h=h, prev=None, word=start, logp=0, length=1)
             nodes.put((node.eval(), node))
             q_size = 1
 
@@ -61,7 +80,7 @@ def decode_with_beam_search(
                 # fetch the best word
                 score, prev = nodes.get()
 
-                # Record if reach the end of sentence or is too long
+                # Record if reach the end of sentence
                 if (prev.word == vocab_list.index('<end>') or prev.length >= c_len) and prev.prev != None:
                     endnodes.append((score, prev))
                     # Break when we get enough generated sentences
@@ -74,10 +93,10 @@ def decode_with_beam_search(
                 encode = model.encoder.embedding(word).squeeze(1)
 
                 # Decode
-                h, score = model.generator.decode(v=v, prev=encode, v_mean=v_mean, h=h)
+                h, distribution = model.generator.decode(v=v, prev=encode, v_mean=v_mean, h=h)
 
                 # Get top-k prediction
-                score, word_id = score.topk(k=k, largest=True, sorted=True)
+                prob, word_id = distribution.topk(k=k, largest=True, sorted=True)
 
                 # Put into queue
                 for j in range(k):
@@ -85,7 +104,7 @@ def decode_with_beam_search(
                         h=h,
                         prev=prev,
                         word=word_id[0,j],
-                        score=score[0,j].item(),
+                        logp=prob[0,j].item() + prev.logp,
                         length=prev.length+1
                     )
                     nodes.put((node.eval(), node))

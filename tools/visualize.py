@@ -47,14 +47,25 @@ def show_att(att, img, bbox, k=3, output=None):
     font = ImageFont.load_default()
     
     # Draw rectangles and texts
+    color = 'red'
     for i in range(k):
         b = bbox[index[i]]
-        draw.rectangle([(b[0], b[1]), (b[2], b[3])], fill=None, outline='red', width=2)
+        draw.rectangle([(b[0], b[1]), (b[2], b[3])], fill=None, outline=color, width=2)
         text = f'{value[i]:.2f}'
         w, h = font.getsize(text)
-        draw.rectangle([(b[0], b[1]), (b[0]+w+1, b[1]+h+1)], fill='red')
+        draw.rectangle([(b[0], b[1]), (b[0]+w+1, b[1]+h+1)], fill=color)
         draw.text([b[0], b[1]], text)
+        color = 'lightcoral'
     return output
+
+
+def print_result(batch, predict, ans_list):
+    print('Q:', batch['q_word'])
+    print('C:', batch['c_word'])
+    print('target:')
+    for i, j in batch['target'].items():
+        print(f'{min(j,3)/3:.2f}', ans_list[int(i)])
+    print('\npredict: ', ans_list[torch.argmax(predict).item()])
 
 
 def show_graph_att(model, dataset, ans_list, sample=0, img_path='../COCO', k=3, layer=-1):
@@ -79,12 +90,7 @@ def show_graph_att(model, dataset, ans_list, sample=0, img_path='../COCO', k=3, 
     output = show_att(g_att, img, bbox, k=k+1)
     
     # Print results
-    print('Q:', batch['q_word'])
-    print('C:', batch['c_word'])
-    print('target:')
-    for i, j in batch['target'].items():
-        print(f'{min(j,3)/3:.2f}', ans_list[int(i)])
-    print('\npredict: ', ans_list[torch.argmax(predict).item()])
+    print_result(batch, predict, ans_list)
     return output
 
 
@@ -108,9 +114,5 @@ def show_top_k_regions(model, dataset, ans_list, sample=0, img_path='../COCO', k
     output = show_att(att, img, bbox, k=k)
     
     # Print results
-    print('Q:', batch['q_word'])
-    print('\npredict: ', ans_list[torch.argmax(predict).item()])
-    print('\ntarget:')
-    for i, j in batch['target'].items():
-        print(f'{min(j,3)/3:.2f}', ans_list[int(i)])
+    print_result(batch, predict, ans_list)
     return output
