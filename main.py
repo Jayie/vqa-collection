@@ -109,6 +109,7 @@ def main():
     # get parameters
     args = parse_args()
     if args.load_setting: args = Argument(os.path.join('checkpoint', args.comment, 'param.pkl'))
+    if args.select_path == 'none': val_checkpoint = True
 
     ###### settings ######
     # prepare logger
@@ -164,28 +165,29 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_train=True,
-            dataset_type='select' if args.select_path != 0 else 'all'
+            dataset_type='select' if args.select_path != 'none' else 'all'
         )
         train_loader = DataLoader(train_data,
             batch_size=args.batch_size,
             shuffle=args.shuffle,
-            num_workers=4*torch.cuda.device_count(),
+            num_workers=4,
             pin_memory=True,
         )
+        
         val_data = set_dataset(
             load_path=args.load_path,
             feature_path=args.feature_path,
-            caption_id_path=args.select_path,
+            caption_id_path='../annot/select_caption/most_relevant.pkl',
             graph_path=args.graph_path,
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='select' if args.select_path != 0 else 'all'
+            dataset_type='select'
         )
         val_loader = DataLoader(val_data,
             batch_size=args.batch_size,
             shuffle=False,
-            num_workers=4*torch.cuda.device_count(),
+            num_workers=4,
             pin_memory=True,
         )
 
@@ -221,6 +223,7 @@ def main():
             gamma = args.gamma,
             lr_vqa = args.lr_vqa,
             lr_cap = args.lr_cap,
+            val_checkpoint = val_checkpoint
         )
 
     # Evaluate: after training process or for mode 'val'

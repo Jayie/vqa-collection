@@ -135,8 +135,8 @@ class VQACaptionAllDataset(VQADataset):
     def __len__(self): return 5 * len(self.questions)
 
     def __getitem__(self, index):
-        img_id = str(int(self.questions[index]['img_file'][-16:-4]))
-        vqa_index, cap_index = index // 5, index % 5
+        vqa_index, cap_index = index % len(self.questions), index // len(self.questions)
+        img_id = str(int(self.questions[vqa_index]['img_file'][-16:-4]))
         output = self.get_vqa(vqa_index)
         output['c'] = output['c'] = np.array(self.captions[img_id]['c'][cap_index])
         output['cap_len'] = self.captions[img_id]['cap_len'][cap_index]
