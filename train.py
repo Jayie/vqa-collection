@@ -84,7 +84,7 @@ def train(  model, lr,
             logger.show(f'[Result] best epoch: {best_epoch}, score: {best_score:.10f} / {bound:.10f}')
         else:
             avg_loss /= batches
-            logger.show(f'[Epoch {epoch} avg_loss: {avg_loss:.4f}')
+            logger.show(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f}')
 
     # # Data parallelism
     # if torch.cuda.device_count() > 1:
@@ -123,9 +123,10 @@ def train(  model, lr,
                 t = time.strftime("%H:%M:%S", time.gmtime(time.time()-start))
                 logger.write(f'[Batch {i}] loss: {(avg_loss-prev_loss)/checkpoint:.4f} ({t})')
                 prev_loss = avg_loss
-                torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
             
-            if val_checkpoint and i % len(train_loader.dataset.questions) == 0: val(avg_loss)
+            if val_checkpoint and i % len(train_loader.dataset.questions) == 0 and i != 0:
+                val(avg_loss)
+                torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
             
         # when an epoch is completed
         # save checkpoint
@@ -139,6 +140,29 @@ def train(  model, lr,
             schedualer.step()
             lr = [param['lr'] for param in optimizer.param_groups]
             logger.show(f'learning rate: {lr}')
+
+
+def train_select(  model, lr,
+            train_loader, val_loader,
+            logger,
+            save_path: str,
+            num_epoches: int,
+            device: str,
+            comment: str = '',
+            optim_type: str = 'adamax',
+            checkpoint: int = 10000,
+            start_epoch: int = 0, batches: int = 0,
+            max_norm: float = 0.25,
+            best_score: float = 0,
+            warm_up: int = 0,
+            step_size: int = 0,
+            gamma: float = 0.25,
+            lr_vqa: float = 0,
+            lr_cap: float = 0,
+            val_checkpoint: bool = False,
+): 
+    pass
+
 
 
 def evaluate(model, dataloader, device: str, logger=None, writer=None, ans_index=None, save_path=None):

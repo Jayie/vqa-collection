@@ -123,6 +123,8 @@ class BaseCaptionPredictor(BasePredictor):
 
         # caption embedding
         c = self.c_net(self.c_rnn(c))
+        self.c_grad = c
+        self.c_grad.retain_grad()
 
         # FC layers
         v = self.v_net(v) # [batch, hidden_dim]
@@ -132,6 +134,8 @@ class BaseCaptionPredictor(BasePredictor):
         
         # Joint question features (multiply)
         joint = q * joint # [batch, hidden_dim]
+        self.logit_grad = joint
+        self.logit_grad.retain_grad()
         
         return self.classifier(joint)
 
@@ -191,6 +195,9 @@ class PredictorwithCaption(nn.Module):
         # Produce caption-attended visual features
         v = self.vq_net(v) # [batch, hidden_dim]
         c = self.c_net(c) # [batch, hidden_dim]
+        self.c_grad = c
+        self.c_grad.retain_grad()
+
         joint = self.joint_net(c * v)
         joint = nn.functional.softmax(joint, 1) # [batch, num_objs, hidden_dim]
         v = (joint.unsqueeze(1).repeat(1, batch['v'].size(1), 1) * batch['v']).sum(1) # [batch, hidden_dim]
@@ -200,5 +207,7 @@ class PredictorwithCaption(nn.Module):
         # and then element-wise multiply by the question features.
         v = self.vqc_net(v) # [batch, hidden_dim]
         joint = batch['q'] * (v + c) # [batch, hidden_dim]
+        self.logit_grad = joint
+        self.logit_grad.retain_grad()
 
         return self.classifier(joint) # [batch, ans_dim]

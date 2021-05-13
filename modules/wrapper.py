@@ -57,11 +57,9 @@ class Wrapper(nn.Module):
         for name, module in self.encoder.named_modules():
             pass 
         self.encoder_last_layer = name
-        # hook
-        self.encoder.register_backward_hook(self.save_grad)
 
-    def save_grad(self, module, input, output):
-        self.gradients.append(output[0])
+    def save_grad(self, grad):
+        self.gradients.append(grad)
 
     def forward(self, batch):
         self.gradients = []
@@ -76,6 +74,7 @@ class Wrapper(nn.Module):
         return predict, caption
 
     def get_loss(self, batch):
+        self.gradients = []
         predict, caption = self.forward(batch)
         loss = torch.tensor(0, dtype=torch.float).to(self.device)
         writes = {}
@@ -83,6 +82,7 @@ class Wrapper(nn.Module):
         if predict is not None:
             target = batch['a'].float().to(self.device)
             loss_vqa = instance_bce_with_logits(predict, target)
+
             writes['train/loss'] = loss_vqa.item()
             writes['train/score'] = compute_score(predict, target, self.device).sum().item()
 
@@ -93,6 +93,7 @@ class Wrapper(nn.Module):
 
         if caption is not None:
             loss_cap = ce_for_language_model(caption['predict'], caption['target'])
+
             writes['train/cap/loss'] = loss_cap.item()
 
             if self.use_mtl:
@@ -110,7 +111,6 @@ class Wrapper(nn.Module):
 
 
     def forward_vqa(self, batch):
-        self.gradients = []
         target = batch['a'].float().to(self.device)
         batch = self.encoder(batch)
         predict = self.predictor(batch)
@@ -118,7 +118,6 @@ class Wrapper(nn.Module):
         return score, label, target
 
     def forward_cap(self, batch):
-        self.gradients = []
         batch = self.encoder(batch)
         caption = self.generator(batch) if self.generator else None
         return caption
