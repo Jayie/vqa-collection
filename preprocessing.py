@@ -3,17 +3,17 @@ import json
 import random
 import argparse
 
-import nltk
 import numpy as np
 from tqdm import tqdm
-from nltk.tokenize import RegexpTokenizer
-from nltk.stem import WordNetLemmatizer
+# import nltk
+# from nltk.tokenize import RegexpTokenizer
+# from nltk.stem import WordNetLemmatizer
 
 import torch
 import torch.nn as nn
 
 from util.utils import get_vocab_list
-from util.modules import PretrainedWordEmbedding
+from modules.modules import PretrainedWordEmbedding
 
 ############################################
 # TODO: Reconstruct
@@ -86,13 +86,33 @@ def preprocessing(
     # Setup tools
     vocab_list = get_vocab_list(vocab_path)
     ans_list = get_vocab_list(ans_vocab_path)
-    lemmatizer = WordNetLemmatizer()
-    tokenizer = RegexpTokenizer(r'\w+')
+    # lemmatizer = WordNetLemmatizer()
+    # tokenizer = RegexpTokenizer(r'\w+')
+
+    # def get_tokens(sentence, is_cap=False):
+    #     # turn into lower case, tokenize and remove symbols
+    #     words = tokenizer.tokenize(sentence.lower())
+    #     words = [lemmatizer.lemmatize(word, pos='n') for word in words]
+    #     if is_cap:
+    #         words.insert(0, '<start>')
+    #         words.append('<end>')
+
+    #     tokens = []
+    #     for word in words:
+    #         if word in vocab_list: token = vocab_list.index(word)
+    #         else: token = vocab_list.index('<oov>')
+    #         tokens.append(token)
+    #     return ' '.join(words), tokens
 
     def get_tokens(sentence, is_cap=False):
-        # turn into lower case, tokenize and remove symbols
-        words = tokenizer.tokenize(sentence.lower())
-        words = [lemmatizer.lemmatize(word, pos='n') for word in words]
+        sentence = sentence.lower()
+        for c in [' \'', '\' ', ' \"', '\" ', '\n']:
+            sentence = sentence.replace(c, ' ')
+        for c in '.,?':
+            sentence = sentence.replace(c, '')
+        sentence = sentence.replace('\'s', ' \'s')
+        words = [i for i in sentence.split() if len(i) > 0]
+        
         if is_cap:
             words.insert(0, '<start>')
             words.append('<end>')
@@ -103,6 +123,8 @@ def preprocessing(
             else: token = vocab_list.index('<oov>')
             tokens.append(token)
         return ' '.join(words), tokens
+        
+
 
     def padding(tokens, max_l):
         l = min(len(tokens), max_l)
