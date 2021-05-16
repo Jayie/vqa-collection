@@ -109,7 +109,7 @@ def main():
     # get parameters
     args = parse_args()
     if args.load_setting: args = Argument(os.path.join('checkpoint', args.comment, 'param.pkl'))
-    if args.select_path == 'none': val_checkpoint = True
+    val_checkpoint = True if args.select_path == 'none' else False
 
     ###### settings ######
     # prepare logger
