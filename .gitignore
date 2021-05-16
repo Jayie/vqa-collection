@@ -5,4 +5,5 @@
 checkpoint/
 runs/
 annot/
+.vscode/
 change_param.py
