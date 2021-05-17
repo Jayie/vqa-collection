@@ -35,7 +35,6 @@ def parse_args():
     parser.add_argument('--save_q', type=bool, default=False)
     parser.add_argument('--save_a', type=bool, default=False)
     parser.add_argument('--save_c', type=bool, default=False)
-    parser.add_argument('--select_c', type=str, default='first')
     parser.add_argument('--glove_path', type=str, default='')
     
     args = parser.parse_args()    
@@ -55,7 +54,6 @@ def preprocessing(
     save_q: bool = False,
     save_a: bool = False,
     save_c: bool = False,
-    select_c: str = 'first',
     glove_path: str = '',
 ):
     """
@@ -70,15 +68,12 @@ def preprocessing(
     c_len: the maximal length of captions (default = 20)
     q_len: the maximal length of questions (default = 10)
     save_q/save_a/save_c: save questions/answers/captions or not
-    select_c: the strategy for selecting captions (default = 'first')
-    glove_path: path for pre-trained GloVe word embeddings (only needed when select_c == 'vqa-e')
     """
     print('q:', save_q)
     print('a:', save_a)
     print('c:', save_c)
 
     # Check if save_path exist
-    save_path = os.path.join(save_path, select_c)
     print(save_path)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -139,18 +134,6 @@ def preprocessing(
             f.write(json.dumps({'description': desc, 
                                 'data_type': data_type,
                                 'data': data}))
-
-    def select_strategy(captions, select_c='first'):
-        """
-        the strategies to select a caption for each image.
-        """
-        if select_c == 'first':
-            # Default: select the first caption
-            return captions[0]
-        elif select_c == 'random':
-            # random: randomly select from 1 caption from 5
-            return captions[random.randrange(0, 5)]
-
 
     #########################################################################
     # Read VQA annotation dataset
@@ -224,39 +207,22 @@ def preprocessing(
     
     # Store captions based on image ID
     captions = {}
-    for c in tqdm(c_json, desc='Store captions'):
-        if c['image_id'] not in captions:
-            captions[c['image_id']] = []
-        captions[c['image_id']].append(c['caption'])
+    for c in tqdm(c_json):
+        image_id = c['image_id']
+        if image_id not in captions:
+            captions[image_id] = []
+        captions[image_id].append(c['caption'])
 
     if save_c:
-        c_data = []
-        for i, image_id in enumerate(tqdm(image_ids, desc='caption')):
-            if select_c == 'all':
-                all_words = []
-                all_tokens = []
-                all_cap_len = []
-                for caption in captions[image_id]:
-                    words, tokens = get_tokens(caption, is_cap=True)
-                    tokens, cap_len = padding(tokens, c_len)
-                    all_words.append(words)
-                    all_tokens.append(tokens)
-                    all_cap_len.append(cap_len)
-                c_data.append({
-                    'c_word': all_words,
-                    'c': all_tokens,
-                    'cap_len': all_cap_len
-                })
-            else:
-                caption = select_strategy(captions[image_id], select_c=select_c)
+        cap_token = {}
+        for image_id in tqdm(captions):
+            cap_token[image_id] = {'c_word':[], 'c':[], 'cap_len':[]}
+            for caption in captions[image_id]:
                 words, tokens = get_tokens(caption, is_cap=True)
                 tokens, cap_len = padding(tokens, c_len)
-                c_data.append({
-                    'c_word': words,
-                    'c': tokens,
-                    'cap_len': cap_len
-                })
-
+                cap_token[image_id]['c_word'].append(words)
+                cap_token[image_id]['c'].append(tokens)
+                cap_token[image_id]['cap_len'].append(cap_len)
         # Save answer dataset
         save_file(file_name=os.path.join(save_path,f'{dataset_type}_captions.json'),
                 desc='This is COCO Captions dataset.',
