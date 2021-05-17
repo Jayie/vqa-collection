@@ -55,11 +55,29 @@ class DirectedGraphConv(BaseGraphConv):
     def __init__(self, in_dim, out_dim, num_labels):
         super().__init__(in_dim, out_dim, num_labels, True)
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
+        self.weight_triu = Parameter(torch.FloatTensor(in_dim, out_dim))
+        self.weight_tril = Parameter(torch.FloatTensor(in_dim, out_dim))
+        self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
         self.reset_parameters()
 
-    def forward(self, feature, graph):
+    # def forward(self, feature, graph):
+    #     """Input:
+    #         feature: [batch, num_objs, in_dim]
+    #         graph: [batch, num_objs, num_objs]
+    #     Output: [batch, num_objs, out_dim]
+    #     """
+    #     batch = feature.size(0)
+    #     adj = (graph!=0).float()
+    #     output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+    #     output = torch.bmm(adj, output)
+        
+    #     # Add bias according to labels
+    #     # Need to add the original feature since the diagonal of our relation graph is zero
+    #     return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+    
+    def conv(self, feature, graph):
         """Input:
             feature: [batch, num_objs, in_dim]
             graph: [batch, num_objs, num_objs]
@@ -67,12 +85,21 @@ class DirectedGraphConv(BaseGraphConv):
         """
         batch = feature.size(0)
         adj = (graph!=0).float()
-        output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
-        output = torch.bmm(adj, output)
+        # <i, j>
+        triu = torch.bmm(feature, self.weight_triu.unsqueeze(0).repeat(batch,1,1))
+        triu = torch.bmm(torch.triu(adj), triu)
+        # <j, i>
+        tril = torch.bmm(feature, self.weight_tril.unsqueeze(0).repeat(batch,1,1))
+        tril = torch.bmm(torch.tril(adj), tril)
+        # <i, i>
+        feature = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
         
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
-        return feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        return feature + tril + triu + self.bias[graph.cpu().numpy(),:].sum(2)
+    
+    def forward(self, feature, graph):
+        return self.conv(feature, graph)
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
@@ -92,25 +119,43 @@ class CorrelatedGraphConv(DirectedGraphConv):
         alpha = self.softmax(alpha)
         return alpha
 
+    # def forward(self, feature, graph, get_alpha):
+    #     """Input:
+    #         feature: [batch, num_objs, in_dim]
+    #         graph: [batch, num_objs, num_objs]
+    #     Output: [batch, num_objs, out_dim]
+    #     """
+    #     batch = feature.size(0)
+    #     adj = (graph!=0).float()
+    #     output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+    #     output = torch.bmm(adj, output)
+
+    #     # Compute correlations
+    #     alpha = self.relation_alpha(feature, adj)
+    #     # Mutiply
+    #     output = torch.bmm(alpha, output)
+
+    #     # Add bias according to labels
+    #     # Need to add the original feature since the diagonal of our relation graph is zero
+    #     output = feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+    #     if get_alpha: return output, alpha
+    #     else: return output
+
     def forward(self, feature, graph, get_alpha):
         """Input:
-            feature: [batch, num_objs, in_dim]
-            graph: [batch, num_objs, num_objs]
+        feature: [batch, num_objs, in_dim]
+        graph: [batch, num_objs, num_objs]
         Output: [batch, num_objs, out_dim]
         """
-        batch = feature.size(0)
         adj = (graph!=0).float()
-        output = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
-        output = torch.bmm(adj, output)
-
+        output = self.conv(feature, graph)
+        
         # Compute correlations
         alpha = self.relation_alpha(feature, adj)
-        # Mutiply
-        output = torch.bmm(alpha, output)
-
+        
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
-        output = feature + output + self.bias[graph.cpu().numpy(),:].sum(2)
+        output = torch.bmm(alpha, output)
         if get_alpha: return output, alpha
         else: return output
 
