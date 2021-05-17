@@ -58,11 +58,10 @@ def train(  model, lr,
     optimizer = torch.optim.Adamax(params, lr=lr)
     schedualer = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
-    best_score = best_score
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
 
-    def val(avg_loss):
+    def val(avg_loss, best_score):
         if model.predictor != None:
             # evaluate
             eval_score, bound = evaluate(model, val_loader, device)
@@ -125,7 +124,7 @@ def train(  model, lr,
                 prev_loss = avg_loss
             
             if val_checkpoint and i % len(train_loader.dataset.questions) == 0 and i != 0:
-                val(avg_loss)
+                val(avg_loss, best_score)
                 torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
             
         # when an epoch is completed
@@ -133,7 +132,7 @@ def train(  model, lr,
         torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}.pt')
  
         # If there is VQA module: evaluate
-        val(avg_loss)
+        val(avg_loss, best_score)
 
         # if not warm-up step: scheduler step
         if epoch >= warm_up and step_size != 0:

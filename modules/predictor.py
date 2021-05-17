@@ -124,7 +124,7 @@ class BaseCaptionPredictor(BasePredictor):
         # caption embedding
         c = self.c_net(self.c_rnn(c))
         self.c_grad = c
-        self.c_grad.retain_grad()
+        # self.c_grad.retain_grad()
 
         # FC layers
         v = self.v_net(v) # [batch, hidden_dim]
@@ -135,7 +135,7 @@ class BaseCaptionPredictor(BasePredictor):
         # Joint question features (multiply)
         joint = q * joint # [batch, hidden_dim]
         self.logit_grad = joint
-        self.logit_grad.retain_grad()
+        # self.logit_grad.retain_grad()
         
         return self.classifier(joint)
 
