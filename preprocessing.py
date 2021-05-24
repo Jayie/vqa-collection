@@ -70,7 +70,7 @@ def preprocessing(
     save_q/save_a/save_c: save questions/answers/captions or not
     """
     print('q:', save_q)
-    print('a:', save_a)
+    print('a:', save_a, os.path.join(save_path,f'{dataset_type}_answer_type.json'))
     print('c:', save_c)
 
     # Check if save_path exist
@@ -226,7 +226,7 @@ def preprocessing(
         # Save answer dataset
         save_file(file_name=os.path.join(save_path,f'{dataset_type}_captions.json'),
                 desc='This is COCO Captions dataset.',
-                data_type=dataset_type, data=c_data
+                data_type=dataset_type, data=cap_token
         )
         print('caption dataset saved.')
 
@@ -249,5 +249,5 @@ if __name__ == '__main__':
         save_q=args.save_q,
         save_a=args.save_a,
         save_c=args.save_c,
-        select_c=args.select_c
+        # select_c=args.select_c
     )
