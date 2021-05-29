@@ -197,7 +197,8 @@ class GCN(nn.Module):
                 feature, alpha = self.gcn[i](feature, graph, get_alpha)
                 alphas.append(alpha)
             else:
-                feature = nn.functional.relu(self.gcn[i](feature, graph, get_alpha))
+                feature = self.gcn[i](feature, graph, get_alpha)
+            feature = nn.functional.relu(feature)
         
         if get_alpha: return feature, alphas
         else: return feature
