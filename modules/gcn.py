@@ -51,9 +51,10 @@ class BaseGraphConv(nn.Module):
         return self.__class__.__name__ + ' (' + str(self.in_dim) + ' -> ' + str(self.out_dim) + ')'
 
 
-class DirectedGraphConv(BaseGraphConv):
+class DirectedGraphConv(nn.Module):
     def __init__(self, in_dim, out_dim, num_labels):
-        super().__init__(in_dim, out_dim, num_labels, True)
+        # super().__init__(in_dim, out_dim, num_labels, True)
+        super().__init__()
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
         self.weight_triu = Parameter(torch.FloatTensor(in_dim, out_dim))
         self.weight_tril = Parameter(torch.FloatTensor(in_dim, out_dim))
@@ -61,6 +62,14 @@ class DirectedGraphConv(BaseGraphConv):
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
         self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight_triu.data.uniform_(-stdv, stdv)
+        self.weight_tril.data.uniform_(-stdv, stdv)
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.bias is not None:
+            self.bias.data.uniform_(-stdv, stdv)
 
     # def forward(self, feature, graph):
     #     """Input:
