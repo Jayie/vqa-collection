@@ -61,7 +61,7 @@ def train(  model, lr,
     best_epoch = 0
     if batches == 0: batches = len(train_loader)
 
-    def val(avg_loss, best_score):
+    def val(avg_loss, best_score, best_epoch):
         if model.predictor != None:
             # evaluate
             eval_score, bound = evaluate(model, val_loader, device)
@@ -84,7 +84,7 @@ def train(  model, lr,
         else:
             avg_loss /= batches
             logger.show(f'[Epoch {epoch}] avg_loss: {avg_loss:.4f}')
-        return best_score
+        return best_score, best_epoch
 
     # # Data parallelism
     # if torch.cuda.device_count() > 1:
@@ -125,7 +125,7 @@ def train(  model, lr,
                 prev_loss = avg_loss
             
             if val_checkpoint and i % len(train_loader.dataset.questions) == 0 and i != 0:
-                best_score = val(avg_loss, best_score)
+                best_score, best_epoch = val(avg_loss, best_score, best_epoch)
                 torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}_batch_{i}.pt')
             
         # when an epoch is completed
@@ -133,7 +133,7 @@ def train(  model, lr,
         torch.save(model.state_dict(), f'{save_path}/epoch_{epoch}.pt')
  
         # If there is VQA module: evaluate
-        best_score = val(avg_loss, best_score)
+        best_score, best_epoch = val(avg_loss, best_score, best_epoch)
 
         # if not warm-up step: scheduler step
         if epoch >= warm_up and step_size != 0:
