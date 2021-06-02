@@ -47,6 +47,18 @@ def set_encoder(encoder_type: str,
             conv_type=conv_type,
             conv_layer=conv_layer
         )
+    if encoder_type == 'cap':
+        model = CaptionEmbedding(
+            ntoken=ntoken,
+            v_dim=v_dim,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            device=device,
+            dropout=dropout,
+            rnn_type=rnn_type,
+            rnn_layer=rnn_layer,
+            att_type=att_type
+        )
     if vocab_path != '':
         model.embedding = PretrainedWordEmbedding(vocab_path=vocab_path, device=device)
     return model.to(device)
@@ -56,6 +68,43 @@ def set_encoder(encoder_type: str,
 # 'Tips and Tricks for Visual Question Answering: Learning from teh 2017 Challenge' (https://arxiv.org/abs/1708.02711)
 #
 # Code reference: https://github.com/hengyuan-hu/bottom-up-attention-vqa
+
+class CaptionEncoder(nn.Module):
+    def __init__(self,
+                 ntoken: int,
+                 embed_dim: int,
+                 hidden_dim: int,
+                 rnn_layer: int,
+                 v_dim: int,
+                 device: str,
+                 dropout: float = 0.5,
+                 rnn_type: str = 'GRU',
+                 att_type: str = 'base'
+    ):
+        super().__init__()
+        self.device = device
+
+        # Word embedding for question
+        self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
+    
+    def forward(self, batch):
+        # Caption embedding
+        c_target = batch['c'].to(self.device)
+        c = self.embedding(c_target) # [batch, c_len, embed_dim]
+        
+        # Setup inputs
+        v = batch['img'].to(self.device)
+        q = batch['q'].to(self.device)
+        c_target = batch['c'].to(self.device)
+        cap_len = batch['cap_len'].to(self.device)
+
+        return {
+            'v': batch['img'],          # [batch, num_objs, v_dim]
+            'q': batch['q'],            # [batch, hidden_dim]
+            'c': c,                     # [batch, c_len, embed_dim]
+            'c_target': c_target,       # [batch, c_len]
+            'cap_len': batch['cap_len'],# [batch]
+        }
 
 class BaseEncoder(nn.Module):
     """
