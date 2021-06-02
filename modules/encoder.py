@@ -48,7 +48,7 @@ def set_encoder(encoder_type: str,
             conv_layer=conv_layer
         )
     if encoder_type == 'cap':
-        model = CaptionEmbedding(
+        model = CaptionEncoder(
             ntoken=ntoken,
             embed_dim=embed_dim,
             device=device,
