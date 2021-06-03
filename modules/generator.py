@@ -180,7 +180,7 @@ class BaseDecoder(DecoderModule):
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
         h0 = h[0] if self.rnn_type == 'LSTM' else h
-        return h0, self.softmax(self.fcnet(h0))
+        return h0, self.fcnet(h0)
 
 
 class BUTDDecoder(DecoderModule):
@@ -259,4 +259,4 @@ class BUTDDecoder(DecoderModule):
         # Second RNN: Language RNN
         h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-        return h, self.softmax(self.h2_fcnet(h))
+        return h, self.h2_fcnet(h)
