@@ -155,6 +155,9 @@ def main():
                     )
     print('model ready.')
 
+    if args.select_path == 'vqa-e': dataset_type = 'vqa-e'
+    elif args.select_path == 'none': dataset_type = 'all'
+    else: dataset_type = 'select'
     if args.mode == 'train':
         # setup training and validation datasets
         train_data = set_dataset(
@@ -165,7 +168,7 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_train=True,
-            dataset_type='select' if args.select_path != 'none' else 'all'
+            dataset_type=dataset_type,
         )
         train_loader = DataLoader(train_data,
             batch_size=args.batch_size,
@@ -182,7 +185,7 @@ def main():
             vocab_list=vocab_list,
             ans_list=ans_list,
             is_val=True,
-            dataset_type='select'
+            dataset_type='vqa-e' if dataset_type == 'vqa-e' else 'select'
         )
         val_loader = DataLoader(val_data,
             batch_size=args.batch_size,

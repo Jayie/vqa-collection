@@ -35,6 +35,7 @@ def set_dataset(
         'vqa': VQADataset,
         'select': VQACaptionDataset,
         'all': VQACaptionAllDataset,
+        'vqa-e':VQAEDataset,
     }[dataset_type](
         load_path=load_path,
         feature_path=feature_path,
@@ -105,6 +106,26 @@ class VQADataset(Dataset):
     def __getitem__(self, index):
         return self.get_vqa(index)
 
+
+class VQAEDataset(VQADataset):
+    def __init__(self,
+                 load_path: str,
+                 feature_path: str,
+                 dataset_name: str,
+                 vocab_list: list,
+                 ans_list: list,
+                 graph_path: str='',
+                 caption_id_path: str='',
+    ):
+        super().__init__(load_path, feature_path, dataset_name, vocab_list, ans_list, graph_path)
+        with open(os.path.join(f'{load_path}_captions.json')) as f:
+            self.captions = json.load(f)['data']
+
+    def __getitem__(self, index):
+        output = self.get_vqa(index)
+        output['c'] = np.array(self.captions[index]['c'])
+        output['cap_len'] = self.captions[index]['cap_len']
+        return output
 
 class VQACaptionAllDataset(VQADataset):
     """VQA + COCO caption datset which use all captions.
