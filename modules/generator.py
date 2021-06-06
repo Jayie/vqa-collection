@@ -40,30 +40,24 @@ def set_decoder(decoder_type: str,
 class DecoderModule(nn.Module):
     def init(self):
         super().__init__()
+        self.h_num = 1
     
     def init_hidden(self, batch_size):
         """Initialize hidden states."""
         init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
-        if self.rnn_type == 'LSTM': return (init, init)
-        else: return init
+        if self.rnn_type == 'LSTM': return [(init, init)] * self.h_num
+        else: return [init] * self.h_num
 
     def select_hidden(self, h, batch_size):
-        if self.rnn_type == 'LSTM': return (h[0][:batch_size], h[1][:batch_size])
-        else: return h[:batch_size]
+        for i in range(len(h)):
+            if self.rnn_type == 'LSTM': h[i] = (h[i][0][:batch_size], h[i][1][:batch_size])
+            else: h[i] = h[i][:batch_size]
+        return h
+        # if self.rnn_type == 'LSTM': return (h[0][:batch_size], h[1][:batch_size])
+        # else: return h[:batch_size]
 
     def decode(self, v, v_mean, prev, h):
-        """Decode process
-        Given image features and previous word, return the distribution of next word.
-        Input:
-            v: [batch, num_objs, v_dim]
-            v_mean: [batch, v_dim]
-            prev: [batch, embed_dim]
-            h: [batch, hidden_dim]
-        Output:
-            h: [batch, hidden_dim]
-            word: [batch, ntoken]
-        """
-        pass
+        assert False, 'Error: please override the decode function'
 
     def forward(self, batch):
         """Training process
@@ -173,6 +167,7 @@ class BaseDecoder(DecoderModule):
         """Decode process
         """
         # Attention of image considering hidden state
+        h = h[0]
         h0 = h[0] if self.rnn_type == 'LSTM' else h
         att = self.attention(v, h0) # [batch, num_objs, 1]
         att_v = (att * v).sum(1) # [batch, v_dim]
@@ -180,7 +175,7 @@ class BaseDecoder(DecoderModule):
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
         h0 = h[0] if self.rnn_type == 'LSTM' else h
-        return h0, self.fcnet(h0)
+        return [h0], self.fcnet(h0)
 
 
 class BUTDDecoder(DecoderModule):
@@ -219,6 +214,7 @@ class BUTDDecoder(DecoderModule):
         self.max_len = max_len
         self.ntoken = ntoken
         self.device = device
+        self.h_num = 2
 
         # Prepare word embedding layer and sentence embedding layer.
         # Since we need to compute the attention for each time step, we use RNN cells here.
@@ -232,16 +228,16 @@ class BUTDDecoder(DecoderModule):
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.softmax = nn.Softmax(dim=1)
 
-    def init_hidden(self, batch_size):
-        """Initialize hidden states."""
-        init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
-        if self.rnn_type == 'LSTM': return (init, init), (init, init)
-        else: return init, init
+    # def init_hidden(self, batch_size):
+    #     """Initialize hidden states."""
+    #     init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
+    #     if self.rnn_type == 'LSTM': return (init, init), (init, init)
+    #     else: return init, init
 
-    def select_hidden(self, h, batch_size):
-        h1, h2 = h
-        if self.rnn_type == 'LSTM': return (h1[0][:batch_size], h1[1][:batch_size]), (h2[0][:batch_size], h2[1][:batch_size])
-        else: return h1[:batch_size], h2[:batch_size]
+    # def select_hidden(self, h, batch_size):
+    #     h1, h2 = h
+    #     if self.rnn_type == 'LSTM': return (h1[0][:batch_size], h1[1][:batch_size]), (h2[0][:batch_size], h2[1][:batch_size])
+    #     else: return h1[:batch_size], h2[:batch_size]
 
     def decode(self, v, v_mean, prev, h):
         h1, h2 = h
@@ -259,4 +255,4 @@ class BUTDDecoder(DecoderModule):
         # Second RNN: Language RNN
         h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-        return h, self.h2_fcnet(h)
+        return [h1, h2], self.h2_fcnet(h)
