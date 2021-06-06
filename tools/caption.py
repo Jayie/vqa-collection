@@ -112,7 +112,7 @@ def decode_with_beam_search(
                 q_size += k - 1
 
             # Chose k-best paths
-            if len(endnodes) == 0:
+            if len(endnodes) < k:
                 l = k-len(endnodes)
                 endnodes = [nodes.get() for _ in range(l)]
 
