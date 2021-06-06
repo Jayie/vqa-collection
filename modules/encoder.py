@@ -214,7 +214,8 @@ class RelationEncoder(BaseEncoder):
             num_labels=12,
             device=device,
             conv_layer=conv_layer,
-            conv_type=conv_type
+            conv_type=conv_type,
+            dropout=dropout,
         ) if use_imp else None
 
         self.spatial_encoder = GCN(
@@ -223,7 +224,8 @@ class RelationEncoder(BaseEncoder):
             num_labels=12,
             device=device,
             conv_layer=conv_layer,
-            conv_type=conv_type
+            conv_type=conv_type,
+            dropout=dropout,
         ) if use_spa else None
 
         # Prepare fully-connected graph

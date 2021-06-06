@@ -52,22 +52,26 @@ class BaseGraphConv(nn.Module):
 
 
 class DirectedGraphConv(nn.Module):
-    def __init__(self, in_dim, out_dim, num_labels):
+    def __init__(self, in_dim, out_dim, num_labels, dir_num=3):
         # super().__init__(in_dim, out_dim, num_labels, True)
         super().__init__()
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
-        self.weight_triu = Parameter(torch.FloatTensor(in_dim, out_dim))
-        self.weight_tril = Parameter(torch.FloatTensor(in_dim, out_dim))
-        self.weight = Parameter(torch.FloatTensor(in_dim, out_dim))
+        self.out_dim = out_dim
+        self.dir_num = dir_num
+        weight = []
+        for i in range(dir_num):
+            weight.append(nn.Linear(in_dim, out_dim))
+        self.weight = nn.ModuleList(weight)
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
-        self.weight_triu.data.uniform_(-stdv, stdv)
-        self.weight_tril.data.uniform_(-stdv, stdv)
-        self.weight.data.uniform_(-stdv, stdv)
+        stdv = 1. / math.sqrt(self.out_dim)
+        # self.weight_triu.data.uniform_(-stdv, stdv)
+        # self.weight_tril.data.uniform_(-stdv, stdv)
+        # for i in range(self.dir_num):
+        #     self.weight[i].data.uniform_(-stdv, stdv)
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
@@ -94,18 +98,13 @@ class DirectedGraphConv(nn.Module):
         """
         batch = feature.size(0)
         adj = (graph!=0).float()
-        # <i, j>
-        triu = torch.bmm(feature, self.weight_triu.unsqueeze(0).repeat(batch,1,1))
-        triu = torch.bmm(torch.triu(adj), triu)
-        # <j, i>
-        tril = torch.bmm(feature, self.weight_tril.unsqueeze(0).repeat(batch,1,1))
-        tril = torch.bmm(torch.tril(adj), tril)
-        # <i, i>
-        feature = torch.bmm(feature, self.weight.unsqueeze(0).repeat(batch,1,1))
+        output = torch.zeros_like(feature)
+        for i in range(self.dir_num):
+            output += self.weight[i](feature)
         
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
-        return feature + tril + triu + self.bias[graph.cpu().numpy(),:].sum(2)
+        return output + self.bias[graph.cpu().numpy(),:].sum(2)
     
     def forward(self, feature, graph):
         return self.conv(feature, graph)
@@ -180,7 +179,8 @@ class GCN(nn.Module):
                   num_labels: int,
                   device: str,
                   conv_layer: int = 1,
-                  conv_type: str = 'corr'
+                  conv_type: str = 'corr',
+                  dropout: float = 0.5,
                 ):
         super().__init__()
         GraphConv = get_graph_conv(conv_type)
@@ -188,6 +188,7 @@ class GCN(nn.Module):
         self.gcn = [GraphConv(in_dim, out_dim, num_labels).to(device)]
         for _ in range(conv_layer-1):
             self.gcn.append(GraphConv(out_dim, out_dim, num_labels).to(device))
+        self.dropout = nn.Dropout(dropout)
 
     def __repr__(self):
         output = []
@@ -207,6 +208,7 @@ class GCN(nn.Module):
                 alphas.append(alpha)
             else:
                 feature = self.gcn[i](feature, graph, get_alpha)
+            feature = self.dropout(feature)
             feature = nn.functional.relu(feature)
         
         if get_alpha: return feature, alphas
