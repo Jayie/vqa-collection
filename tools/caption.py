@@ -89,7 +89,7 @@ def decode_with_beam_search(
 
                 # Get word embedding and hidden state of previous word
                 word = torch.LongTensor([[prev.word]]).to(device)
-                h = prev.h.to(device)
+                h = prev.h
                 encode = model.encoder.embedding(word).squeeze(1)
 
                 # Decode
