@@ -52,7 +52,7 @@ class BaseGraphConv(nn.Module):
 
 
 class DirectedGraphConv(nn.Module):
-    def __init__(self, in_dim, out_dim, num_labels, dir_num=3):
+    def __init__(self, in_dim, out_dim, num_labels, dir_num=2):
         # super().__init__(in_dim, out_dim, num_labels, True)
         super().__init__()
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
@@ -60,7 +60,7 @@ class DirectedGraphConv(nn.Module):
         self.dir_num = dir_num
         weight = []
         for i in range(dir_num):
-            weight.append(nn.Linear(in_dim, out_dim))
+            weight.append(nn.Linear(in_dim, out_dim, bias=False))
         self.weight = nn.ModuleList(weight)
         # Define biases for different labels
         self.bias = Parameter(torch.FloatTensor(num_labels, out_dim))
@@ -99,6 +99,7 @@ class DirectedGraphConv(nn.Module):
         batch = feature.size(0)
         adj = (graph!=0).float()
         output = torch.zeros_like(feature)
+        output += feature
         for i in range(self.dir_num):
             output += self.weight[i](feature)
         
