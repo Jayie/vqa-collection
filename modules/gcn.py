@@ -52,7 +52,7 @@ class BaseGraphConv(nn.Module):
 
 
 class DirectedGraphConv(nn.Module):
-    def __init__(self, in_dim, out_dim, num_labels, dir_num=2):
+    def __init__(self, in_dim, out_dim, num_labels, dir_num=3):
         # super().__init__(in_dim, out_dim, num_labels, True)
         super().__init__()
         # TODO: Define weights for different <i,j>, <j,i> and <i,i>
@@ -98,9 +98,9 @@ class DirectedGraphConv(nn.Module):
         """
         batch = feature.size(0)
         adj = (graph!=0).float()
-        output = torch.zeros_like(feature)
-        for i in range(self.dir_num):
-            output += self.weight[i](feature)
+        output = self.weight[-1](feature)
+        for i in range(self.dir_num-1):
+            output += torch.bmm(adj, self.weight[i](feature))
         
         # Add bias according to labels
         # Need to add the original feature since the diagonal of our relation graph is zero
@@ -111,7 +111,7 @@ class DirectedGraphConv(nn.Module):
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
-    def __init__(self, in_dim, out_dim, num_labels, dir_num=2):
+    def __init__(self, in_dim, out_dim, num_labels, dir_num=3):
         super().__init__(in_dim, out_dim, num_labels, dir_num)
         self.dot_product = DotProduct(in_dim, in_dim, out_dim)
         self.softmax = nn.Softmax(dim=1)
