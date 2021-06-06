@@ -152,6 +152,7 @@ class BaseDecoder(DecoderModule):
         self.max_len = max_len
         self.ntoken = ntoken
         self.device = device
+        self.h_num = 1
 
         # Prepare word embedding layer and sentence embedding layer.
         # Since we need to compute the attention for each time step, we use RNN cells here.

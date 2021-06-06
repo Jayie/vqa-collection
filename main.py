@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument('--feature_path', type=str, default='../../COCO_feature_36', help='path for COCO image features')
     parser.add_argument('--select_path', type=str, default='../annot/select_caption/most_relevant.pkl', help='path for caption selection strategy')
     parser.add_argument('--graph_path', type=str, default='../../COCO_graph_36', help='path for COCO spatial relation graphs')
-    parser.add_argument('--index_path', type=str, default='../annot/index.pkl', help='path for index of different answer types')
+    parser.add_argument('--index_path', type=str, default='index.pkl', help='path for index of different answer types')
 
     # dataset and dataloader settings
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
@@ -234,12 +234,12 @@ def main():
     if args.mode  == 'train' or args.mode == 'val':
         # load model: if not specified, load the best model
         if args.load_model == '':
-            args.load_model = f'checkpoint/{args.comment}/best_model.pt'
+            args.load_model = os.path.join('checkpoint', args.comment, 'best_model.pt')
         model.load_state_dict(torch.load(args.load_model))
         print('load parameters: ', args.load_model)
 
         # load index of different answer types
-        with open(args.index_path, 'rb') as f:
+        with open(os.path.join(args.load_path, 'index.pkl'), 'rb') as f:
             ans_index = pickle.load(f)
 
         # setup validation dataset
