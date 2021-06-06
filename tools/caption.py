@@ -57,7 +57,7 @@ def decode_with_beam_search(
     with torch.no_grad():
         embed = model.encoder(batch)
 
-        for i in tqdm(range(batch_size)):
+        for i in range(batch_size):
             # Initialize
             v = embed['v'][i].unsqueeze(0)
             v_mean = v.mean(1).to(device)
