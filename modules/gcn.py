@@ -99,7 +99,6 @@ class DirectedGraphConv(nn.Module):
         batch = feature.size(0)
         adj = (graph!=0).float()
         output = torch.zeros_like(feature)
-        output += feature
         for i in range(self.dir_num):
             output += self.weight[i](feature)
         
@@ -112,8 +111,8 @@ class DirectedGraphConv(nn.Module):
 
 
 class CorrelatedGraphConv(DirectedGraphConv):
-    def __init__(self, in_dim, out_dim, num_labels):
-        super().__init__(in_dim, out_dim, num_labels)
+    def __init__(self, in_dim, out_dim, num_labels, dir_num=2):
+        super().__init__(in_dim, out_dim, num_labels, dir_num)
         self.dot_product = DotProduct(in_dim, in_dim, out_dim)
         self.softmax = nn.Softmax(dim=1)
 
