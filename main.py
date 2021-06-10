@@ -88,8 +88,8 @@ def parse_args():
 
     # learning rate scheduler settings
     parser.add_argument('--lr', type=float, default=0.002, help='general learning rate')
-    parser.add_argument('--lr_vqa', type=float, default=0, help='learning rate for VQA (default = 0 i.e. use the general lr)')
-    parser.add_argument('--lr_cap', type=float, default=4e-4, help='learning rate for captioning (default = 0 i.e. use the general lr)')
+    parser.add_argument('--lr_vqa', type=float, default=0, help='learning rate for VQA (if = 0 i.e. use the general lr)')
+    parser.add_argument('--lr_cap', type=float, default=4e-4, help='learning rate for captioning (if = 0 i.e. use the general lr)')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
