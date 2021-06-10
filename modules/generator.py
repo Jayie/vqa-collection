@@ -162,7 +162,7 @@ class BaseDecoder(DecoderModule):
 
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.fcnet = nn.Linear(hidden_dim, ntoken)
-        self.softmax = nn.Softmax(dim=1)
+        self.dropout = nn.Dropout(dropout=dropout)
 
     def decode(self, v, v_mean, prev, h):
         """Decode process
@@ -176,7 +176,7 @@ class BaseDecoder(DecoderModule):
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
         h0 = h[0] if self.rnn_type == 'LSTM' else h
-        return [h0], self.fcnet(h0)
+        return [h0], self.fcnet(self.dropout(h0))
 
 
 class BUTDDecoder(DecoderModule):
@@ -227,18 +227,7 @@ class BUTDDecoder(DecoderModule):
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
-        self.softmax = nn.Softmax(dim=1)
-
-    # def init_hidden(self, batch_size):
-    #     """Initialize hidden states."""
-    #     init = torch.zeros((batch_size, self.hidden_dim), device=self.device)
-    #     if self.rnn_type == 'LSTM': return (init, init), (init, init)
-    #     else: return init, init
-
-    # def select_hidden(self, h, batch_size):
-    #     h1, h2 = h
-    #     if self.rnn_type == 'LSTM': return (h1[0][:batch_size], h1[1][:batch_size]), (h2[0][:batch_size], h2[1][:batch_size])
-    #     else: return h1[:batch_size], h2[:batch_size]
+        self.dropout = nn.Dropout(dropout=dropout)
 
     def decode(self, v, v_mean, prev, h):
         h1, h2 = h
@@ -247,13 +236,14 @@ class BUTDDecoder(DecoderModule):
         h = h2[0] if self.rnn_type == 'LSTM' else h2
         h1 = self.word_rnn(torch.cat([h, v_mean, prev], dim=1), h1) # output: [batch_t, hidden_dim]
         h = h1[0] if self.rnn_type == 'LSTM' else h1
-        h = self.h1_fcnet(h)
+        h = self.h1_fcnet(self.dropout(h))
 
         # Attention
         att = self.attention(v, h) # [batch_t, num_objs, 1]
         att_v = (att * v).sum(1) # [batch_t, v_dim]
+        self.att = att # save the attention score
 
         # Second RNN: Language RNN
         h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-        return [h1, h2], self.h2_fcnet(h)
+        return [h1, h2], self.h2_fcnet(self.dropout(h))
