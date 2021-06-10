@@ -162,7 +162,7 @@ class BaseDecoder(DecoderModule):
 
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.fcnet = nn.Linear(hidden_dim, ntoken)
-        self.dropout = nn.Dropout(dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def decode(self, v, v_mean, prev, h):
         """Decode process
@@ -227,7 +227,7 @@ class BUTDDecoder(DecoderModule):
         self.attention = set_att(att_type)(v_dim=v_dim, q_dim=hidden_dim, hidden_dim=hidden_dim)
         self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
-        self.dropout = nn.Dropout(dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def decode(self, v, v_mean, prev, h):
         h1, h2 = h
