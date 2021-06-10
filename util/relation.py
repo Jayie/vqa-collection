@@ -10,7 +10,7 @@ def spatial_relation(a, b, w, h):
         h: the height of the whole image
     Output: the type number of both a and b
     The definition of spatial relations <a-b> is described in 'Exploring Visual Relationship for Image Captioning'
-        1: a is inside b
+        1: a includes b
         2: a is coverd by b
         3: a overlaps b (IoU >= 0.5)
         4~11: index = ceil(delta / 45) + 3 (IoU < 0.5)
