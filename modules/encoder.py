@@ -74,11 +74,12 @@ class CaptionEncoder(nn.Module):
 
         # Word embedding for question
         self.embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
+        self.c_embedding = nn.Embedding(ntoken+1, embed_dim, padding_idx=ntoken)
     
     def forward(self, batch):
         # Caption embedding
         c_target = batch['c'].to(self.device)
-        c = self.embedding(c_target) # [batch, c_len, embed_dim]
+        c = self.c_embedding(c_target) # [batch, c_len, embed_dim]
         
         # Setup inputs
         v = batch['img'].to(self.device)
