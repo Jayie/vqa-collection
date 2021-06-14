@@ -180,7 +180,7 @@ class PretrainedWordEmbedding(nn.Module):
         self.vocab_dim = len(lines[0].split())-1
         self.vocab_len = len(lines) + 4 # vocabulary size = GloVe vocabulary + <oov> + <start> + <end> + <pad>
         vocab = np.zeros((self.vocab_len, self.vocab_dim))
-        for i, line in enumerate(tqdm(lines, desc='prepare vocabulary')):
+        for i, line in enumerate(lines):
             vocab[i,:] = np.asarray(line.split()[1:], "float32") # save pre-trained vectors
         self.vocab = torch.Tensor(vocab)
 
