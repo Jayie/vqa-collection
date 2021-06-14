@@ -36,7 +36,6 @@ class FCNet(nn.Module):
             # If 1-layer:
             # Layer 1: in_dim -> out_dim
             layers.append(weight_norm(nn.Linear(in_dim, out_dim), dim=None))
-            layers.append(nn.ReLU())
         else:
             # Else:
             # Suppose there are N layers
@@ -53,6 +52,7 @@ class FCNet(nn.Module):
             
             # Layer n: mid_dim -> out_dim
             layers.append(weight_norm(nn.Linear(mid_dim, out_dim), dim=None))
+        layers.append(nn.ReLU())
         
         self.main = nn.Sequential(*layers)
 
