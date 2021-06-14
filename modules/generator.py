@@ -49,10 +49,11 @@ class DecoderModule(nn.Module):
         else: return [init] * self.h_num
 
     def select_hidden(self, h, batch_size):
+        output = []
         for i in range(len(h)):
-            if self.rnn_type == 'LSTM': h[i] = (h[i][0][:batch_size], h[i][1][:batch_size])
-            else: h[i] = h[i][:batch_size]
-        return h
+            if self.rnn_type == 'LSTM': output.append(h[i][0][:batch_size], h[i][1][:batch_size])
+            else: output.append(h[i][:batch_size])
+        return output
         # if self.rnn_type == 'LSTM': return (h[0][:batch_size], h[1][:batch_size])
         # else: return h[:batch_size]
 
@@ -164,6 +165,12 @@ class BaseDecoder(DecoderModule):
         self.fcnet = nn.Linear(hidden_dim, ntoken)
         self.dropout = nn.Dropout(dropout)
 
+        self._init_weights()
+
+    def _init_weights(self):
+        self.fcnet.bias.data.fill_(0)
+        self.fcnet.weight.data.uniform_(-0.1, 0.1)
+
     def decode(self, v, v_mean, prev, h):
         """Decode process
         """
@@ -228,6 +235,12 @@ class BUTDDecoder(DecoderModule):
         self.h1_fcnet = nn.Linear(hidden_dim, hidden_dim)
         self.h2_fcnet = nn.Linear(hidden_dim, ntoken)
         self.dropout = nn.Dropout(dropout)
+
+    def _init_weights(self):
+        self.h1_fcnet.bias.data.fill_(0)
+        self.h1_fcnet.weight.data.uniform_(-0.1, 0.1)
+        self.h2_fcnet.bias.data.fill_(0)
+        self.h2_fcnet.weight.data.uniform_(-0.1, 0.1)
 
     def decode(self, v, v_mean, prev, h):
         h1, h2 = h
