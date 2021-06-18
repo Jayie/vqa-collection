@@ -93,7 +93,7 @@ def decode_with_beam_search(
                 encode = model.encoder.embedding(word).squeeze(1)
 
                 # Decode
-                h, distribution = model.generator.decode(v=v, prev=encode, v_mean=v_mean, h=h)
+                h, distribution, _ = model.generator.decode(v=v, prev=encode, v_mean=v_mean, h=h)
 
                 # Get top-k prediction
                 prob, word_id = distribution.topk(k=k, largest=True, sorted=True)

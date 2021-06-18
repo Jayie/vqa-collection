@@ -49,16 +49,19 @@ class DecoderModule(nn.Module):
         else: return [init] * self.h_num
 
     def select_hidden(self, h, batch_size):
-        output = []
         for i in range(len(h)):
-            if self.rnn_type == 'LSTM': output.append(h[i][0][:batch_size], h[i][1][:batch_size])
-            else: output.append(h[i][:batch_size])
-        return output
+            if self.rnn_type == 'LSTM':
+                h[i] = (h[i][0][:batch_size], h[i][1][:batch_size])
+                # output.append((h[i][0][:batch_size], h[i][1][:batch_size]))
+            else:
+                h[i] = h[i][:batch_size]
+                # output.append(h[i][:batch_size])
+        return h
         # if self.rnn_type == 'LSTM': return (h[0][:batch_size], h[1][:batch_size])
         # else: return h[:batch_size]
 
     def decode(self, v, v_mean, prev, h):
-        assert False, 'Error: please override the decode function'
+        pass
 
     def forward(self, batch):
         """Training process
@@ -68,16 +71,15 @@ class DecoderModule(nn.Module):
         cap_len = batch['cap_len'].to(self.device)
         target = batch['c_target'].to(self.device)
         num_objs = v.size(1)
-        
-        # Flatten image features
-        v_mean = v.mean(1) # [batch, v_dim]
 
         # Sort input data by decreasing lengths, so that we can process only valid time steps, i.e., no need to process the <pad>
         cap_len, sort_id = cap_len.sort(dim=0, descending=True)
-        restore_id = sorted(sort_id, key=lambda k: sort_id[k]) # to restore the order
         caption = caption[sort_id]
         v = v[sort_id]
-        v_mean = v_mean[sort_id]
+        target = target[sort_id]
+        
+        # Flatten image features
+        v_mean = v.mean(1) # [batch, v_dim]
 
         # Initialize RNN states
         batch_size = caption.size(0)
@@ -85,7 +87,7 @@ class DecoderModule(nn.Module):
 
         # Create tensor to hold the caption embedding after all time steps
         output = torch.zeros(batch_size, self.max_len, self.ntoken, device=self.device)
-        # alphas = torch.zeros(batch, self.max_len, num_objs).to(self.device)
+        # alphas = torch.zeros(batch_size, self.max_len, num_objs, device=self.device)
 
         # We don't decode at the <end> position
         decode_len = (cap_len - 1).tolist()
@@ -100,14 +102,15 @@ class DecoderModule(nn.Module):
             h = self.select_hidden(h, batch_t) # h: [batch_t, hidden_dim]
             
             # Save the results
-            h, word = self.decode(
+            h, word, _ = self.decode(
                 v=v[:batch_t],
                 v_mean=v_mean[:batch_t],
                 prev=caption[:batch_t, t, :],
                 h=h
             )
+
             output[:batch_t, t, :] = word
-        
+            # alphas[:batch_t, t, :] = att
         # Since decode starting with <start>, the targets are all words after <start>
         target = target[:,1:]
         
@@ -183,7 +186,8 @@ class BaseDecoder(DecoderModule):
         # Decode
         h = self.rnn(torch.cat([prev, att_v], dim=1), h)
         h0 = h[0] if self.rnn_type == 'LSTM' else h
-        return [h0], self.fcnet(self.dropout(h0))
+        output = self.fcnet(self.dropout(h0))
+        return [h], output, att
 
 
 class BUTDDecoder(DecoderModule):
@@ -259,4 +263,5 @@ class BUTDDecoder(DecoderModule):
         # Second RNN: Language RNN
         h2 = self.language_rnn(torch.cat([att_v, h], dim=1), h2 )# output: [batch_t, hidden_dim]
         h = h2[0] if self.rnn_type == 'LSTM' else h2
-        return [h1, h2], self.h2_fcnet(self.dropout(h))
+        output = self.h2_fcnet(self.dropout(h))
+        return [h1, h2], output, att

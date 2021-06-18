@@ -103,18 +103,12 @@ def train(  model, lr,
             loss, writes = model.get_loss(batch)
             for tag, write_value in writes.items():
                 writer.add_scalar(tag, write_value, epoch * batches + i)
-
-            ##############################################################################################################################
-            # TODO: Back prop. strategy for 'Generating Question Relevant Captions to Aid Visual Question Answering'
-            #       Suppose that datas in each batch share the same Q-A pair with different caption,
-            #       our goal is to select the most relevant one (which means that the gradient of Q-A pair and the caption are similar)
-            ##############################################################################################################################
             
             # Back prop.
+            optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
-            optimizer.zero_grad()
 
             avg_loss += loss.item()
 
