@@ -4,6 +4,7 @@ import json
 import pickle
 import time
 import traceback
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import torch
@@ -12,9 +13,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from dataset import set_dataset
 from train import train, evaluate
-from sample import sample_vqa
 from modules.wrapper import set_model
 from util.utils import *
+from tools.caption import decode_one_batch
 
 
 class Argument():
@@ -31,7 +32,7 @@ class Argument():
             output = output + f'{k}: {v}' + '\n'
         return output
     
-    def save(self):
+    def save(self, load_path):
         with open(os.path.join(load_path, 'param.pkl'), 'wb') as f:
             pickle.dump(self.__dict__, f)
 
@@ -56,7 +57,7 @@ def parse_args():
     parser.add_argument('--index_path', type=str, default='index.pkl', help='path for index of different answer types')
 
     # dataset and dataloader settings
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=128, help='batch size')
     parser.add_argument('--shuffle', type=bool, default=True, help='shuffle dataloader or not')
     parser.add_argument('--c_len', type=int, default=20)
 
@@ -67,7 +68,7 @@ def parse_args():
     parser.add_argument('--embed_dim', type=int, default=300, help='the dimension of embedding')
     parser.add_argument('--hidden_dim', type=int, default=1024, help='the dimension of hidden layers (default = 512)')
     parser.add_argument('--v_dim', type=int, default=2048, help='the dimension of visual embedding')
-    parser.add_argument('--dropout', type=float, default=0.5, help='dropout')
+    parser.add_argument('--dropout', type=float, default=0.2, help='dropout')
     parser.add_argument('--rnn_layer', type=int, default=1, help='the number of RNN layers for question embedding')
 
     # predictor settings
@@ -83,22 +84,22 @@ def parse_args():
 
     # decoder settings
     parser.add_argument('--decoder_type', type=str, default='base', help='decoder type (none/base/butd, default = base)')
-    parser.add_argument('--decoder_hidden_dim', type=int, default=256, help='the dimension of hidden layers in decoder (default = 512)')
+    parser.add_argument('--decoder_hidden_dim', type=int, default=512, help='the dimension of hidden layers in decoder (default = 512)')
     parser.add_argument('--decoder_device', type=str, default='', help='device for decoder (model parallel)')
 
     # learning rate scheduler settings
     parser.add_argument('--lr', type=float, default=0.002, help='general learning rate')
     parser.add_argument('--lr_vqa', type=float, default=0, help='learning rate for VQA (if = 0 i.e. use the general lr)')
-    parser.add_argument('--lr_cap', type=float, default=4e-4, help='learning rate for captioning (if = 0 i.e. use the general lr)')
+    parser.add_argument('--lr_cap', type=float, default=0, help='learning rate for captioning (if = 0 i.e. use the general lr)')
     parser.add_argument('--warm_up', type=int, default=0, help='wram-up epoch number')
     parser.add_argument('--step_size', type=int, default=0, help='step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=0.5, help='gamma for learning rate scheduler')
     parser.add_argument('--use_mtl', type=bool, default=True, help='use weighted loss or not (default = True)')
 
     # training/validating process settings
-    parser.add_argument('--mode', type=str, default='train', help='mode: train/val')
+    parser.add_argument('--mode', type=str, default='train', help='mode: train/val/decode')
     parser.add_argument('--load_model', type=str, default='', help='path for the trained model to evaluate')
-    parser.add_argument('--epoches', type=int, default=30, help='the number of epoches')
+    parser.add_argument('--epoches', type=int, default=15, help='the number of epoches')
     parser.add_argument('--batches', type=int, default=0, help='the number of batches we want to run (default = 0 means to run the whole epoch)')
     parser.add_argument('--start_epoch', type=int, default=0, help='the previous epoch number if need to train continuosly')
 
@@ -127,8 +128,11 @@ def main():
     with open(os.path.join(save_path, 'param.pkl'), 'wb') as f:
         pickle.dump(args.__dict__, f)
     with open(os.path.join(save_path, 'param.txt'), 'w') as f:
+        s = ''
         for key, value in args.__dict__.items():
             f.write(f'{key}: {value}\n')
+            s = s + f'{key}: {value}\n'
+    logger.write(s)
 
     # setup model
     model = set_model(  encoder_type=args.encoder_type,
@@ -181,7 +185,7 @@ def main():
         val_data = set_dataset(
             load_path=args.load_path,
             feature_path=args.feature_path,
-            caption_id_path='../annot/select_caption/most_relevant.pkl',
+            caption_id_path=args.select_path,
             graph_path=args.graph_path,
             vocab_list=vocab_list,
             ans_list=ans_list,
@@ -199,12 +203,18 @@ def main():
         score = 0.0
         if args.start_epoch != 0:
             if model.predictor is not None:
-                model.load_state_dict(torch.load(f'checkpoint/{args.comment}/best_model.pt'))
+                path = os.path.join(save_path, 'best_model.pt')
+                model.load_state_dict(torch.load(path))
                 score, _ = evaluate(model, val_loader, args.device)
                 print(f'best score: {score:.4f}')
 
-            model.load_state_dict(torch.load(f'{save_path}/epoch_{args.start_epoch-1}.pt'))
-            print(f'load parameters: {save_path}/epoch_{args.start_epoch-1}.pt')
+            path = os.path.join(save_path, f'epoch_{args.start_epoch-1}.pt')
+            model.load_state_dict(torch.load(path))
+            print('load parameters:', path)
+        elif args.load_model != '':
+            path = os.path.join('checkpoint', args.comment, args.load_model)
+            model.load_state_dict(torch.load(path), strict=False)
+            print('load parameters:', path)
 
         print('start training.')
         train(
@@ -284,6 +294,44 @@ def main():
             },
             metric_dict=metric
         )
+
+    if args.mode == 'decode':
+        # load model: if not specified, load the best model
+        if args.load_model == '':
+            args.load_model = os.path.join('checkpoint', args.comment, 'best_model.pt')
+        model.load_state_dict(torch.load(args.load_model))
+        print('load parameters: ', args.load_model)
+
+        val_data = set_dataset(
+            load_path=args.load_path,
+            feature_path=args.feature_path,
+            caption_id_path=args.select_path,
+            graph_path=args.graph_path,
+            vocab_list=vocab_list,
+            ans_list=ans_list,
+            is_val=True,
+            dataset_type=dataset_type,
+        )
+
+        val_loader = DataLoader(val_data,
+            batch_size=1,
+            shuffle=False,
+            num_workers=4,
+            pin_memory=True,
+        )
+
+        with open(os.path.join(save_path, 'decode.txt'), 'w') as f:
+            for batch in tqdm(val_loader):
+                result = decode_one_batch(
+                    model=model,
+                    batch=batch,
+                    vocab_list=vocab_list,
+                    c_len=args.c_len,
+                    k=3,
+                )
+
+                f.write(result)
+                f.write('\n')
 
 
 if __name__ == '__main__':

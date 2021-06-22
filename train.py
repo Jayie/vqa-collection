@@ -105,10 +105,10 @@ def train(  model, lr,
                 writer.add_scalar(tag, write_value, epoch * batches + i)
             
             # Back prop.
-            optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
+            optimizer.zero_grad()
 
             avg_loss += loss.item()
 
